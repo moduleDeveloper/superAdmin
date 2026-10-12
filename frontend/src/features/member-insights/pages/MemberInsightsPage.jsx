@@ -7,6 +7,7 @@ import PeriodFilter from '../../../components/PeriodFilter';
 import StatsGrid from '../../../components/StatsGrid';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { usePinned } from '../../../hooks/usePinned';
+import { useStoredToggle } from '../../../hooks/useStoredToggle';
 import { formatDateRange, formatDateTime } from '../../../utils/formatDate';
 import { periodTitle } from '../../trust-insights/utils/periodTitle';
 import { buildCountSeries } from '../../trust-insights/utils/trustSeries';
@@ -15,6 +16,7 @@ import MemberTable from '../components/MemberTable';
 import { useMemberGrowth } from '../hooks/useMemberGrowth';
 import { useMemberList } from '../hooks/useMemberList';
 import { useMemberSummary } from '../hooks/useMemberSummary';
+import { EXTRA_COLUMN_COUNT, hiddenSortLabel } from '../utils/memberColumns';
 
 const panel = 'rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_1px_3px_rgba(20,33,61,0.06)]';
 const PIN_OFFSET = 88; // px = 4rem header + 1.5rem gap; matches the panel's lg:top-[5.5rem]
@@ -23,7 +25,7 @@ const DEFAULT_SORT = { key: 'createdAt', dir: 'desc' }; // newest first
 const DEFAULT_VIEW = { search: '', trust: '', appDownload: 'all', sort: DEFAULT_SORT, page: 1, pageSize: 25 };
 
 // Which way a column sorts the first time it is clicked.
-const FIRST_DIRECTION = { createdAt: 'desc', appDownloaded: 'desc', name: 'asc', mobile: 'asc', email: 'asc', company: 'asc' };
+const FIRST_DIRECTION = { createdAt: 'desc', appDownloaded: 'desc', appCount: 'desc', lastAppCreated: 'desc', actionCount: 'desc', managerActivity: 'desc', lastAction: 'desc', name: 'asc', mobile: 'asc', email: 'asc', company: 'asc' };
 
 const number = (n) => (n == null ? undefined : n.toLocaleString('en-IN'));
 
@@ -32,6 +34,8 @@ function MemberInsightsPage() {
   const [view, setView] = useState(DEFAULT_VIEW);
   const debouncedSearch = useDebouncedValue(view.search);
 
+  // The less important columns can be hidden; the choice is remembered. Hidden, the server skips their (slowest) lookups.
+  const [showExtra, toggleExtra] = useStoredToggle('member-table-extra-columns', false);
   const { summary, trusts, error: summaryError, ready } = useMemberSummary();
   const growth = useMemberGrowth(period);
   const { data, loading, error } = useMemberList({
@@ -42,6 +46,7 @@ function MemberInsightsPage() {
     search: debouncedSearch.trim(),
     trust: view.trust,
     appDownload: view.appDownload,
+    columns: showExtra ? 'all' : 'core',
     ...period,
   });
 
@@ -69,12 +74,11 @@ function MemberInsightsPage() {
     [growth.data, growth.loadedAt]
   );
 
-  const downloadedPercent = summary?.totalMembers ? Math.round((summary.appDownloaded / summary.totalMembers) * 100) : 0;
   const [lastDate, lastTime] = summary?.lastJoined ? formatDateTime(summary.lastJoined.createdAt).split(', ') : [];
 
   const stats = [
     { marker: '#7a4a8c', label: 'Total Members', value: number(summary?.totalMembers), hint: 'Across all trusts' },
-    { marker: '#1f8a3b', label: 'App Downloaded', value: number(summary?.appDownloaded), hint: `${downloadedPercent}% of all members` },
+    { marker: '#1f8a3b', label: 'Apps Created', value: number(growth.data?.appsCreated), hint: growth.data ? `${number(growth.data.totalApps)} apps in total` : undefined },
     {
       marker: '#e8912f',
       label: 'Joined in Period',
@@ -89,10 +93,44 @@ function MemberInsightsPage() {
     },
   ];
 
+  // "34 of 72" as "47%": one decimal under 10%, none above; null when there is nothing to divide by.
+  const share = (part, whole) => {
+    if (!whole) return undefined;
+    const percent = (part / whole) * 100;
+    return `${percent < 10 ? percent.toFixed(1) : Math.round(percent)}%`;
+  };
+
+  // A second group under the overview: what the period looked like for the apps themselves.
+  const appStats = [
+    {
+      marker: '#b04a4f',
+      label: 'Members Who Created Apps',
+      value: number(growth.data?.appCreators),
+      // of the members who joined in the period, the share who created an app (creators who joined earlier are not in that base)
+      percent: growth.data && share(growth.data.appCreatorsJoined, growth.data.total),
+      hint: growth.data ? `of ${number(growth.data.total)} members who joined` : undefined,
+    },
+    {
+      marker: '#5b2650',
+      label: 'Apps With Logins',
+      value: number(growth.data?.appsWithLogins),
+      // apps with a login relative to the members who created apps (can pass 100%: it is not a share of one group)
+      percent: growth.data && share(growth.data.appsWithLogins, growth.data.appCreators),
+      hint: growth.data ? `for ${number(growth.data.appCreators)} members who created apps` : undefined,
+    },
+    {
+      marker: '#e8793f',
+      label: 'Avg User Activity per App',
+      value: growth.data ? (growth.data.avgActivityPerApp ?? '—') : undefined,
+      hint: growth.data?.avgActivityPerApp != null ? `${number(growth.data.totalActivity)} activities ÷ ${number(growth.data.appsWithLogins)} apps` : growth.data ? 'No app had a login in the period' : undefined,
+    },
+  ];
+
   // The table panel scrolls with the page until it reaches the top, then pins there and its rows scroll.
   const panelRef = useRef(null);
   const pinned = usePinned(panelRef, PIN_OFFSET);
 
+  const hiddenSort = hiddenSortLabel(view.sort.key, showExtra);
   const anyError = error || summaryError || growth.error;
 
   return (
@@ -114,6 +152,12 @@ function MemberInsightsPage() {
         storageKey="overview-collapsed:members"
         summary={summary && growth.data && `Total members ${number(summary.totalMembers)} · Joined in period ${number(growth.data.total)}`}
         stats={<StatsGrid stats={stats} loading={!ready || !growth.data} />}
+        extra={
+          <div className="rounded-xl border border-[#ebe0d7] bg-white/60">
+            <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-[0.08em] text-[#6b7188]">Apps in this period</p>
+            <StatsGrid stats={appStats} loading={!growth.data} />
+          </div>
+        }
         chart={
           <AreaChart
             title={periodTitle('Members Joined', period, growth.data?.period)}
@@ -150,7 +194,16 @@ function MemberInsightsPage() {
             onAppDownloadChange={(appDownload) => update({ appDownload })}
             onReset={() => setView(DEFAULT_VIEW)}
             canReset={canReset}
+            showExtra={showExtra}
+            onToggleExtra={toggleExtra}
+            extraCount={EXTRA_COLUMN_COUNT}
           />
+
+          {hiddenSort && (
+            <p className="text-xs text-[#6b7188]">
+              Sorted by <span className="font-medium text-[#3a3f55]">{hiddenSort}</span>, which is hidden. Show more columns to see it.
+            </p>
+          )}
         </div>
 
         <MemberTable
@@ -160,6 +213,8 @@ function MemberInsightsPage() {
           onSort={changeSort}
           filtered={filtered}
           pinned={pinned}
+          period={period}
+          showExtra={showExtra}
           scrollResetKey={[view.page, view.pageSize, view.sort.key, view.sort.dir, debouncedSearch, view.trust, view.appDownload, period.range, period.from, period.to].join('|')}
         />
 

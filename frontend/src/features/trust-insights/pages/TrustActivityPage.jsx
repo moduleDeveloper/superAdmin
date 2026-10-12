@@ -4,6 +4,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import AreaChart from '../../../components/AreaChart';
 import OverviewPanel from '../../../components/OverviewPanel';
 import StatsGrid from '../../../components/StatsGrid';
+import { periodQuery } from '../../member-insights/utils/periodQuery';
 import ActivityFilters from '../components/activity/ActivityFilters';
 import ModulesDonut from '../components/activity/ModulesDonut';
 import RecentActivityTable from '../components/activity/RecentActivityTable';
@@ -14,8 +15,12 @@ import { buildActivitySeries } from '../utils/trustSeries';
 
 const NO_OPTIONS = { users: [], modules: [], pages: [] };
 
+/**
+ * One trust's user activity. Opened from Organization Insights (/trust-insights/:trustId) or from a member's Apps
+ * page (/member-insights/:memberId/apps/:trustId/activity): the same page, only the way back differs.
+ */
 function TrustActivityPage() {
-  const { trustId } = useParams();
+  const { trustId, memberId } = useParams();
   const [searchParams] = useSearchParams();
 
   const [initial] = useState(() => ({
@@ -55,9 +60,15 @@ function TrustActivityPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <Link to="/organization-insights" className="text-sm font-medium text-[#b04a4f] hover:underline">
-        ← Back to Trust Insights
-      </Link>
+      {memberId ? (
+        <Link to={`/member-insights/${memberId}/apps${periodQuery(filter)}`} className="text-sm font-medium text-[#b04a4f] hover:underline">
+          ← Back to member&apos;s apps
+        </Link>
+      ) : (
+        <Link to="/organization-insights" className="text-sm font-medium text-[#b04a4f] hover:underline">
+          ← Back to Trust Insights
+        </Link>
+      )}
       <h1 className="mt-3 text-lg lg:text-3xl font-bold tracking-tight">User Activity -{data ? `${data.trust.name} · ` : ''} </h1>
       <p className="mt-1 text-[#5b627a]">
         Page visits and usage by the trust&apos;s users.
