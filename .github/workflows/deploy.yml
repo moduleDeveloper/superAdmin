@@ -74,4 +74,4 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -p ${{ secrets.VPS_PORT }} \
             ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
-            "cd ${{ env.BACKEND_PATH }} && npm ci --omit=dev && pm2 restart ${{ env.PM2_NAME }} --update-env && pm2 save"
+            ". ~/.nvm/nvm.sh && nvm use 22 > /dev/null && cd ${{ env.BACKEND_PATH }} && npm ci --omit=dev && pm2 restart ${{ env.PM2_NAME }} && pm2 save"
