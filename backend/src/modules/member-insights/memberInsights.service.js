@@ -89,13 +89,52 @@ export async function countActiveTrusts(memberIds) {
     return counts;
 }
 
-const toMember = (row, trustCounts) => ({
+/**
+ * Apps each of these members has created: one "superuser" row = one app. Returns a Map of member id ->
+ * { count, lastCreatedAt } (members with no apps get { count: 0, lastCreatedAt: null }). Like countActiveTrusts,
+ * this runs for the members on the page only.
+ */
+export async function getAppStats(memberIds) {
+    const stats = new Map(memberIds.map((id) => [id, { count: 0, lastCreatedAt: null }]));
+
+    const chunks = [];
+    for (let i = 0; i < memberIds.length; i += ID_CHUNK) chunks.push(memberIds.slice(i, i + ID_CHUNK));
+
+    await Promise.all(
+        chunks.map(async (ids) => {
+            for (let from = 0; ; from += REG_PAGE) {
+                const { data } = unwrap(
+                    await supabase
+                        .from('superuser')
+                        .select('members_id, created_at')
+                        .in('members_id', ids)
+                        .order('id')
+                        .range(from, from + REG_PAGE - 1)
+                );
+                data.forEach((app) => {
+                    const entry = stats.get(app.members_id);
+                    entry.count += 1;
+                    if (app.created_at && (!entry.lastCreatedAt || app.created_at > entry.lastCreatedAt)) {
+                        entry.lastCreatedAt = app.created_at;
+                    }
+                });
+                if (data.length < REG_PAGE) break;
+            }
+        })
+    );
+
+    return stats;
+}
+
+const toMember = (row, trustCounts, appStats) => ({
     id: row.members_id,
     name: clean(row.Name),
     mobile: row.Mobile != null ? String(row.Mobile) : null,
     email: clean(row.Email),
     companyName: clean(row['Company Name']),
     trustCount: trustCounts.get(row.members_id) ?? 0,
+    appCount: appStats.get(row.members_id)?.count ?? 0,
+    lastAppCreatedAt: appStats.get(row.members_id)?.lastCreatedAt ?? null,
     appDownloaded: row.app_download === true,
     createdAt: row.created_at,
 });
@@ -168,13 +207,14 @@ export async function listMembers({ page, pageSize, sortBy = 'createdAt', sort, 
         total = result.count;
     }
 
-    const trustCounts = await countActiveTrusts(rows.map((row) => row.members_id));
+    const ids = rows.map((row) => row.members_id);
+    const [trustCounts, appStats] = await Promise.all([countActiveTrusts(ids), getAppStats(ids)]);
 
     return {
         total,
         page,
         pageSize,
-        members: rows.map((row) => toMember(row, trustCounts)),
+        members: rows.map((row) => toMember(row, trustCounts, appStats)),
     };
 }
 

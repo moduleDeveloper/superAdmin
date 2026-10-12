@@ -10,6 +10,7 @@ import { apiGet } from '../../../lib/apiClient';
  * {
  *   total, page, pageSize,
  *   members: [{ id, name, mobile, email, companyName, trustCount (active registrations),
+ *               appCount + lastAppCreatedAt (from the superuser table),
  *               appDownloaded, createdAt }]
  * }
  */

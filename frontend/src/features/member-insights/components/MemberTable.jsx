@@ -6,7 +6,7 @@ import SortableTh, { HeadCell } from '../../../components/SortableTh';
 import { useDragScroll } from '../../../hooks/useDragScroll';
 import { formatDateTime } from '../../../utils/formatDate';
 
-const COLUMNS = 7;
+const COLUMNS = 9;
 
 const Empty = () => <span className="text-[#9aa0b4]">—</span>;
 
@@ -32,13 +32,15 @@ function MemberTable({ members, loading, sort, onSort, filtered, pinned = false,
         pinned ? 'lg:overflow-y-auto' : 'lg:overflow-y-hidden'
       } ${loading && members.length > 0 ? 'opacity-60' : ''}`}
     >
-      <table className="w-full min-w-[1250px] text-sm">
+      <table className="w-full min-w-[1500px] text-sm">
         <thead>
           <tr>
             <SortableTh label="Created At" sortKey="createdAt" sort={sort} onSort={onSort} />
             <SortableTh label="Member" sortKey="name" sort={sort} onSort={onSort} />
             <SortableTh label="Mobile" sortKey="mobile" sort={sort} onSort={onSort} />
             <HeadCell>Number of Trusts</HeadCell>
+            <HeadCell>Apps Created</HeadCell>
+            <HeadCell>Last App Created</HeadCell>
             <SortableTh label="Email" sortKey="email" sort={sort} onSort={onSort} />
             <SortableTh label="Company" sortKey="company" sort={sort} onSort={onSort} />
             <SortableTh label="App" sortKey="appDownloaded" sort={sort} onSort={onSort} />
@@ -88,6 +90,10 @@ function MemberTable({ members, loading, sort, onSort, filtered, pinned = false,
                 ) : (
                   <span className="text-[#9aa0b4]">0</span>
                 )}
+              </td>
+              <td className="px-4 py-3 tabular-nums text-[#3a3f55]">{member.appCount > 0 ? member.appCount : <Empty />}</td>
+              <td className="whitespace-nowrap px-4 py-3 text-[#3a3f55]">
+                {member.lastAppCreatedAt ? formatDateTime(member.lastAppCreatedAt) : <Empty />}
               </td>
               <td className="px-4 py-3 text-[#3a3f55]">{member.email ?? <Empty />}</td>
               <td className="px-4 py-3 text-[#3a3f55]">{member.companyName ?? <Empty />}</td>
