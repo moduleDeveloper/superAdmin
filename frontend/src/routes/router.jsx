@@ -37,6 +37,10 @@ const MemberActivityPage = lazy(() =>
   import('../features/member-insights/pages/MemberActivityPage')
 );
 
+const MemberAppsPage = lazy(() =>
+  import('../features/member-insights/pages/MemberAppsPage')
+);
+
 const lazyPage = (Component) => (
   <Suspense fallback={<div>Loading...</div>}>
     <Component />
@@ -78,6 +82,18 @@ export const router = createBrowserRouter([
           {
             path: '/member-insights',
             element: lazyPage(MemberInsightsPage),
+          },
+          {
+            path: '/member-insights/:memberId/apps/:trustId/members',
+            element: lazyPage(TrustMemberLoginsPage),
+          },
+          {
+            path: '/member-insights/:memberId/apps/:trustId/activity',
+            element: lazyPage(TrustActivityPage),
+          },
+          {
+            path: '/member-insights/:memberId/apps',
+            element: lazyPage(MemberAppsPage),
           },
           {
             path: '/member-insights/:memberId/activity',

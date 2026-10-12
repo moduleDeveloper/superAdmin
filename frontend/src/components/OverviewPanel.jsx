@@ -25,8 +25,9 @@ function Chevron({ open }) {
  *
  * The strip along the top collapses the panel to give the table below more room. `summary` is a short line
  * shown while collapsed, and `storageKey` remembers whether the user left it open or closed.
+ * `extra` is an optional full-width block under both (e.g. a second group of numbers).
  */
-function OverviewPanel({ stats, chart, summary, storageKey, className = '' }) {
+function OverviewPanel({ stats, chart, summary, storageKey, className = '', extra = null }) {
   const [collapsed, toggle] = useStoredToggle(storageKey, false);
   const bodyId = useId();
 
@@ -60,6 +61,7 @@ function OverviewPanel({ stats, chart, summary, storageKey, className = '' }) {
             {stats}
             <div className="min-w-0 rounded-xl border border-[#ebe0d7] bg-white p-4 shadow-[0_1px_2px_rgba(80,40,20,0.05)]">{chart}</div>
           </div>
+          {extra && <div className="px-4 pb-4">{extra}</div>}
         </div>
       </div>
     </section>

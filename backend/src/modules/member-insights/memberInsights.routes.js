@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { requireAuth } from '../../middleware/auth.middleware.js';
 import {
     fetchMemberActivity,
+    fetchMemberApps,
     fetchMemberGrowth,
     fetchMembers,
     fetchMemberSummary,
@@ -17,6 +18,7 @@ router.get('/summary', requireAuth, fetchMemberSummary);
 router.get('/growth', requireAuth, fetchMemberGrowth);
 router.get('/trusts', requireAuth, fetchTrustOptions);
 router.get('/:memberId/trusts', requireAuth, fetchMemberTrusts);
+router.get('/:memberId/apps', requireAuth, fetchMemberApps);
 router.get('/:memberId/activity', requireAuth, fetchMemberActivity);
 
 export default router;

@@ -1,17 +1,25 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 
 import MemberLoginsTable from '../components/members/MemberLoginsTable';
 import { useTrustMemberLogins } from '../hooks/useTrustMemberLogins';
 
 function TrustMemberLoginsPage() {
-  const { trustId } = useParams();
+  // Opened from Organization Insights, or from a member's Apps page (/member-insights/:memberId/apps/:trustId/members).
+  const { trustId, memberId } = useParams();
+  const { search } = useLocation(); // the Apps page's period, handed back when going there again
   const { data, loading, error } = useTrustMemberLogins(trustId);
 
   return (
     <div className="mx-auto max-w-6xl">
-      <Link to="/organization-insights" className="text-sm font-medium text-[#b04a4f] hover:underline">
-        ← Back to Trust Insights
-      </Link>
+      {memberId ? (
+        <Link to={`/member-insights/${memberId}/apps${search}`} className="text-sm font-medium text-[#b04a4f] hover:underline">
+          ← Back to member&apos;s apps
+        </Link>
+      ) : (
+        <Link to="/organization-insights" className="text-sm font-medium text-[#b04a4f] hover:underline">
+          ← Back to Trust Insights
+        </Link>
+      )}
       <h1 className="mt-3 text-3xl font-bold tracking-tight">Unique Member Logins</h1>
       <p className="mt-1 text-[#5b627a]">
         {data ? `${data.trust.name} · ` : ''}Members who have logged in to this trust, with their latest session event.

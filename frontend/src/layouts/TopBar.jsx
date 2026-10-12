@@ -1,4 +1,4 @@
-import { MenuIcon } from '../components/sidebar/icons';
+import { MenuIcon, SidebarToggleIcon } from '../components/sidebar/icons';
 
 const roundButton =
   'flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-gray-400/70 bg-white text-[#4b5163] transition hover:border-gray-500 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e8793f]';
@@ -34,7 +34,7 @@ const AvatarIcon = () => (
  * Header across the top of the content area. The theme and notification buttons are placeholders for now
  * (no dark mode or notifications behind them yet).
  */
-function TopBar({ onOpenMenu }) {
+function TopBar({ onOpenMenu, collapsed, onToggleSidebar }) {
   return (
     <header className="sticky border-2 top-0 z-20 flex h-16 items-center justify-between  border-gray-100 bg-white px-4 sm:px-6 lg:px-10 mx-1">
       <button
@@ -44,6 +44,17 @@ function TopBar({ onOpenMenu }) {
         className="-ml-2 cursor-pointer rounded-lg p-2 text-[#3a3f55] hover:bg-gray-100 lg:hidden"
       >
         <MenuIcon />
+      </button>
+
+      <button
+        type="button"
+        onClick={onToggleSidebar}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-pressed={collapsed}
+        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        className="-ml-2 hidden cursor-pointer rounded-lg p-2 text-[#3a3f55] hover:bg-gray-100 lg:block"
+      >
+        <SidebarToggleIcon />
       </button>
 
       <div className="ml-auto flex items-center gap-3">

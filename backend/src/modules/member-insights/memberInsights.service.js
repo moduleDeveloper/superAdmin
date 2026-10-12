@@ -1,5 +1,6 @@
 import { supabase } from '../../config/supabase.js';
 import { startOfLocalDay } from '../../utils/dateRange.js';
+import { getMemberLoginStats } from '../trust-insights/memberLogins.service.js';
 
 const MEMBER_COLUMNS = 'members_id, Name, Mobile, Email, "Company Name", trust_id, app_download, created_at';
 const MOBILE_LENGTH = 10;
@@ -89,44 +90,151 @@ export async function countActiveTrusts(memberIds) {
     return counts;
 }
 
+/** A member's apps are the trusts owned by their superuser row(s): Trust.superuser_id -> superuser.id <- members_id. */
+async function fetchOwnedTrusts(superuserIds, columns) {
+    const trusts = [];
+    for (let i = 0; i < superuserIds.length; i += ID_CHUNK) {
+        const ids = superuserIds.slice(i, i + ID_CHUNK);
+        for (let from = 0; ; from += REG_PAGE) {
+            const { data } = unwrap(
+                await supabase.from('Trust').select(columns).in('superuser_id', ids).order('id').range(from, from + REG_PAGE - 1)
+            );
+            trusts.push(...data);
+            if (data.length < REG_PAGE) break;
+        }
+    }
+    return trusts;
+}
+
 /**
- * Apps each of these members has created: one "superuser" row = one app. Returns a Map of member id ->
+ * Apps each of these members has created = the trusts their superuser owns. Returns a Map of member id ->
  * { count, lastCreatedAt } (members with no apps get { count: 0, lastCreatedAt: null }). Like countActiveTrusts,
  * this runs for the members on the page only.
  */
 export async function getAppStats(memberIds) {
     const stats = new Map(memberIds.map((id) => [id, { count: 0, lastCreatedAt: null }]));
+    if (memberIds.length === 0) return stats;
 
-    const chunks = [];
-    for (let i = 0; i < memberIds.length; i += ID_CHUNK) chunks.push(memberIds.slice(i, i + ID_CHUNK));
+    const owners = new Map(); // superuser id -> member id
+    for (let i = 0; i < memberIds.length; i += ID_CHUNK) {
+        const { data } = unwrap(await supabase.from('superuser').select('id, members_id').in('members_id', memberIds.slice(i, i + ID_CHUNK)));
+        data.forEach((row) => owners.set(row.id, row.members_id));
+    }
 
-    await Promise.all(
-        chunks.map(async (ids) => {
-            for (let from = 0; ; from += REG_PAGE) {
-                const { data } = unwrap(
-                    await supabase
-                        .from('superuser')
-                        .select('members_id, created_at')
-                        .in('members_id', ids)
-                        .order('id')
-                        .range(from, from + REG_PAGE - 1)
-                );
-                data.forEach((app) => {
-                    const entry = stats.get(app.members_id);
-                    entry.count += 1;
-                    if (app.created_at && (!entry.lastCreatedAt || app.created_at > entry.lastCreatedAt)) {
-                        entry.lastCreatedAt = app.created_at;
-                    }
-                });
-                if (data.length < REG_PAGE) break;
-            }
-        })
-    );
+    const trusts = await fetchOwnedTrusts([...owners.keys()], 'id, superuser_id, created_at');
+    trusts.forEach((trust) => {
+        const entry = stats.get(owners.get(trust.superuser_id));
+        entry.count += 1;
+        if (trust.created_at && (!entry.lastCreatedAt || trust.created_at > entry.lastCreatedAt)) entry.lastCreatedAt = trust.created_at;
+    });
 
     return stats;
 }
 
-const toMember = (row, trustCounts, appStats) => ({
+/**
+ * How many page actions each of these members has taken (page_activity rows, all trusts, all time) and when the
+ * latest one was. One small request per member (the count and the newest row come back together, via the
+ * members_id + created_at index), at most 10 at a time. Returns a Map of member id -> { count, lastAt }.
+ */
+export async function getActionStats(memberIds) {
+    const stats = new Map();
+
+    for (let i = 0; i < memberIds.length; i += 10) {
+        await Promise.all(
+            memberIds.slice(i, i + 10).map(async (memberId) => {
+                const { data, count } = unwrap(
+                    await supabase
+                        .from('page_activity')
+                        .select('created_at', { count: 'exact' })
+                        .eq('members_id', memberId)
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                );
+                stats.set(memberId, { count: count ?? 0, lastAt: data[0]?.created_at ?? null });
+            })
+        );
+    }
+
+    return stats;
+}
+
+/** Number of active members in each trust (reg_members rows), as a Map of trust id -> count. */
+async function countTrustMembers(trustIds) {
+    const counts = new Map();
+    for (let i = 0; i < trustIds.length; i += 10) {
+        await Promise.all(
+            trustIds.slice(i, i + 10).map(async (trustId) => {
+                const { count } = unwrap(
+                    await supabase
+                        .from('reg_members')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('trust_id', trustId)
+                        .or('is_active.is.null,is_active.eq.true')
+                );
+                counts.set(trustId, count);
+            })
+        );
+    }
+    return counts;
+}
+
+/** Page activity of all users in each trust during the period (all time without a range). Map of trust id -> count. */
+async function countTrustActivity(trustIds, range) {
+    const counts = new Map();
+    for (let i = 0; i < trustIds.length; i += 10) {
+        await Promise.all(
+            trustIds.slice(i, i + 10).map(async (trustId) => {
+                let query = supabase.from('page_activity').select('id', { count: 'exact', head: true }).eq('trust_id', trustId);
+                if (range) query = query.gte('created_at', range.start).lt('created_at', range.end);
+                counts.set(trustId, unwrap(await query).count);
+            })
+        );
+    }
+    return counts;
+}
+
+/** Every app (trust) created by one member, with its logo, legal name, member count and creation time. Null if no such member. */
+export async function getMemberApps(memberId, range = null) {
+    const { data: member } = unwrap(
+        await supabase.from('Members').select('members_id, Name, Mobile, Email, "Company Name"').eq('members_id', memberId).maybeSingle()
+    );
+    if (!member) return null;
+
+    const { data: owners } = unwrap(await supabase.from('superuser').select('id').eq('members_id', memberId));
+    const trusts = await fetchOwnedTrusts(owners.map((o) => o.id), 'id, name, icon_url, legal_name, keyword, status, created_at');
+    const trustIds = trusts.map((t) => t.id);
+    // unique logins are all-time (same rule as the Unique Member Logins page and the Organization table)
+    const [memberCounts, activityCounts, loginStats] = await Promise.all([
+        countTrustMembers(trustIds),
+        countTrustActivity(trustIds, range),
+        trustIds.length ? getMemberLoginStats(trustIds) : new Map(),
+    ]);
+
+    return {
+        period: range ? { from: range.firstDay, to: range.lastDay } : null,
+        member: {
+            id: member.members_id,
+            name: clean(member.Name),
+            mobile: member.Mobile != null ? String(member.Mobile) : null,
+            email: clean(member.Email),
+            companyName: clean(member['Company Name']),
+        },
+        apps: trusts.map((t) => ({
+            id: t.id,
+            name: t.name,
+            logoUrl: t.icon_url ?? null,
+            legalName: clean(t.legal_name),
+            appType: clean(t.keyword),
+            memberCount: memberCounts.get(t.id) ?? 0,
+            activityCount: activityCounts.get(t.id) ?? 0,
+            uniqueLogins: loginStats.get(t.id)?.uniqueMembers ?? 0,
+            isActive: t.status !== false,
+            createdAt: t.created_at,
+        })),
+    };
+}
+
+const toMember = (row, trustCounts, appStats, actionStats, managerStats) => ({
     id: row.members_id,
     name: clean(row.Name),
     mobile: row.Mobile != null ? String(row.Mobile) : null,
@@ -135,6 +243,9 @@ const toMember = (row, trustCounts, appStats) => ({
     trustCount: trustCounts.get(row.members_id) ?? 0,
     appCount: appStats.get(row.members_id)?.count ?? 0,
     lastAppCreatedAt: appStats.get(row.members_id)?.lastCreatedAt ?? null,
+    managerActivity: managerStats.get(row.members_id)?.count ?? 0,
+    actionCount: actionStats.get(row.members_id)?.count ?? 0,
+    lastActionAt: actionStats.get(row.members_id)?.lastAt ?? null,
     appDownloaded: row.app_download === true,
     createdAt: row.created_at,
 });
@@ -147,6 +258,12 @@ export const SORT_COLUMNS = {
     email: 'Email',
     company: 'Company Name',
     appDownloaded: 'app_download',
+    // Not database columns: ordered here from per-member totals (see STATS_SORTS and listMembers).
+    appCount: null,
+    lastAppCreated: null,
+    actionCount: null,
+    lastAction: null,
+    managerActivity: null,
 };
 
 /**
@@ -156,7 +273,137 @@ export const SORT_COLUMNS = {
 // Text columns where "no value" is stored either as null or as an empty string.
 const TEXT_SORT_COLUMNS = new Set(['Name', 'Email', 'Company Name']);
 
-export async function listMembers({ page, pageSize, sortBy = 'createdAt', sort, search, trustId, appDownload, range }) {
+/** App stats for every member who owns at least one app (there are only a few hundred), as a Map of member id -> { count, lastCreatedAt }. */
+async function getAllAppStats() {
+    const { data: owners } = unwrap(await supabase.from('superuser').select('id, members_id').not('members_id', 'is', null));
+    const memberOf = new Map(owners.map((o) => [o.id, o.members_id]));
+    const stats = new Map();
+    if (memberOf.size === 0) return stats;
+
+    const trusts = await fetchOwnedTrusts([...memberOf.keys()], 'id, superuser_id, created_at');
+    trusts.forEach((trust) => {
+        const memberId = memberOf.get(trust.superuser_id);
+        const entry = stats.get(memberId) ?? { count: 0, lastCreatedAt: null };
+        entry.count += 1;
+        if (trust.created_at && (!entry.lastCreatedAt || trust.created_at > entry.lastCreatedAt)) entry.lastCreatedAt = trust.created_at;
+        stats.set(memberId, entry);
+    });
+    return stats;
+}
+
+/**
+ * The members who are NOT in `owning` (the ones with nothing to sort by), newest first: `skip` of them are passed over,
+ * then `wanted` returned. A "not in (thousands of ids)" filter would make the request URL too long, so the full
+ * newest-first list is read at the right position instead, using how many `owning` members come before it.
+ */
+async function pageOfOthers(newestFirstQuery, owning, skip, wanted) {
+    const ownerIds = new Set(owning.map((m) => m.members_id));
+    const ownersBefore = (row) => owning.reduce((n, o) => n + (newerFirst(o, row) < 0 ? 1 : 0), 0);
+    const rowAt = async (position) => unwrap(await newestFirstQuery().range(position, position)).data[0];
+
+    // find the position of the first wanted member: (position - owners before it) must equal skip, and that row must not be an owner
+    let position = skip;
+    for (let attempt = 0; attempt < 40; attempt++) {
+        const row = await rowAt(position);
+        if (!row) return [];
+        const passed = position - ownersBefore(row);
+        if (passed < skip) position += skip - passed;
+        else if (ownerIds.has(row.members_id)) position += 1;
+        else break;
+    }
+
+    const result = [];
+    const span = wanted + owning.length;
+    for (let from = position; result.length < wanted && from < position + span; from += REG_PAGE) {
+        const { data } = unwrap(await newestFirstQuery().range(from, from + Math.min(REG_PAGE, position + span - from) - 1));
+        data.forEach((row) => !ownerIds.has(row.members_id) && result.length < wanted && result.push(row));
+        if (data.length < REG_PAGE) break;
+    }
+    return result;
+}
+
+const MAX_ACTION_ROWS = 200000;
+
+/** Page-activity rows per trust (users of that app, all of them) inside the period; no `range` = all time. Map of trust id -> count. */
+async function countActivityByTrust(range) {
+    const counts = new Map();
+
+    for (let from = 0; from < MAX_ACTION_ROWS; from += REG_PAGE) {
+        let query = supabase.from('page_activity').select('trust_id').not('trust_id', 'is', null);
+        if (range) query = query.gte('created_at', range.start).lt('created_at', range.end);
+        const { data } = unwrap(await query.order('id').range(from, from + REG_PAGE - 1));
+        data.forEach((row) => counts.set(row.trust_id, (counts.get(row.trust_id) ?? 0) + 1));
+        if (data.length < REG_PAGE) break;
+    }
+
+    return counts;
+}
+
+/**
+ * App manager activity: for each member who owns apps, the page activity of all users in those apps during the period.
+ * Map of member id -> { count }, only for members with some activity.
+ */
+async function getManagerActivity(range) {
+    const [activity, ownersResult] = await Promise.all([
+        countActivityByTrust(range),
+        supabase.from('superuser').select('id, members_id').not('members_id', 'is', null),
+    ]);
+    const { data: owners } = unwrap(ownersResult);
+    const memberOf = new Map(owners.map((o) => [o.id, o.members_id]));
+    const trusts = memberOf.size ? await fetchOwnedTrusts([...memberOf.keys()], 'id, superuser_id') : [];
+
+    const stats = new Map();
+    trusts.forEach((trust) => {
+        const count = activity.get(trust.id) ?? 0;
+        if (!count) return;
+        const memberId = memberOf.get(trust.superuser_id);
+        stats.set(memberId, { count: (stats.get(memberId)?.count ?? 0) + count });
+    });
+    return stats;
+}
+
+/** Page actions of every member who has taken any, as a Map of member id -> { count, lastAt } (one pass over page_activity). */
+async function getAllActionStats() {
+    const stats = new Map();
+
+    for (let from = 0; from < MAX_ACTION_ROWS; from += REG_PAGE) {
+        const { data } = unwrap(
+            await supabase
+                .from('page_activity')
+                .select('members_id, created_at')
+                .not('members_id', 'is', null)
+                .order('id')
+                .range(from, from + REG_PAGE - 1)
+        );
+        data.forEach((row) => {
+            const entry = stats.get(row.members_id) ?? { count: 0, lastAt: null };
+            entry.count += 1;
+            if (!entry.lastAt || row.created_at > entry.lastAt) entry.lastAt = row.created_at;
+            stats.set(row.members_id, entry);
+        });
+        if (data.length < REG_PAGE) break;
+    }
+
+    return stats;
+}
+
+// Sorts done from per-member totals: how to load them, and the number each member is ordered by.
+const STATS_SORTS = {
+    appCount: { load: getAllAppStats, valueOf: (s) => s.count },
+    lastAppCreated: { load: getAllAppStats, valueOf: (s) => Date.parse(s.lastCreatedAt) || 0 },
+    actionCount: { load: getAllActionStats, valueOf: (s) => s.count },
+    lastAction: { load: getAllActionStats, valueOf: (s) => Date.parse(s.lastAt) || 0 },
+    managerActivity: { load: getManagerActivity, valueOf: (s) => s.count },
+};
+
+const ACTION_SORTS = new Set(['actionCount', 'lastAction']);
+const ID_FILTER_CHUNK = 100; // ids per request, so the URL stays short
+
+// "Newer first" order used for members with nothing to sort by.
+const newerFirst = (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || a.members_id.localeCompare(b.members_id);
+
+// `withActions` false = the action columns (count, last action) are not on screen, so their per-member lookups are skipped.
+export async function listMembers({ page, pageSize, sortBy = 'createdAt', sort, search, trustId, appDownload, range, withActions = true }) {
     const searchClause = search ? await buildSearchClause(search) : null;
 
     // A fresh query with every filter applied (query builders are used up once awaited).
@@ -179,7 +426,29 @@ export async function listMembers({ page, pageSize, sortBy = 'createdAt', sort, 
     let rows;
     let total;
 
-    if (TEXT_SORT_COLUMNS.has(column)) {
+    let allStats = null;
+
+    if (column === null) {
+        // Sorted by a per-member total (apps, actions): members who have any are ordered here, everyone else
+        // (nothing to sort by) always comes last, newest first.
+        const { load, valueOf } = STATS_SORTS[sortBy];
+        allStats = await load(range);
+        const owners = [...allStats.keys()];
+
+        const head = { count: 'exact', head: true };
+        total = unwrap(await filtered('members_id', head)).count;
+
+        const chunks = [];
+        for (let i = 0; i < owners.length; i += ID_FILTER_CHUNK) chunks.push(owners.slice(i, i + ID_FILTER_CHUNK));
+        const owning = (await Promise.all(chunks.map(async (ids) => unwrap(await filtered(MEMBER_COLUMNS).in('members_id', ids)).data))).flat();
+        owning.sort((a, b) => (ascending ? 1 : -1) * (valueOf(allStats.get(a.members_id)) - valueOf(allStats.get(b.members_id))) || newerFirst(a, b));
+
+        rows = owning.slice(from, to + 1);
+        if (rows.length < pageSize && total > owning.length) {
+            const wanted = pageSize - rows.length;
+            rows.push(...(await pageOfOthers(() => newestFirst(filtered(MEMBER_COLUMNS)), owning, Math.max(0, from - owning.length), wanted)));
+        }
+    } else if (TEXT_SORT_COLUMNS.has(column)) {
         // Members with no value (null or '') always come last, whichever way the column is sorted, so the real
         // values are read first and the blanks fill whatever is left of the page.
         const head = { count: 'exact', head: true };
@@ -208,13 +477,19 @@ export async function listMembers({ page, pageSize, sortBy = 'createdAt', sort, 
     }
 
     const ids = rows.map((row) => row.members_id);
-    const [trustCounts, appStats] = await Promise.all([countActiveTrusts(ids), getAppStats(ids)]);
+    const sortedBy = (...keys) => (keys.includes(sortBy) ? allStats : null);
+    const [trustCounts, pageAppStats, actionStats, managerStats] = await Promise.all([
+        countActiveTrusts(ids),
+        sortedBy('appCount', 'lastAppCreated') ?? getAppStats(ids),
+        sortedBy('actionCount', 'lastAction') ?? (withActions ? getActionStats(ids) : new Map()),
+        sortedBy('managerActivity') ?? getManagerActivity(range),
+    ]);
 
     return {
         total,
         page,
         pageSize,
-        members: rows.map((row) => toMember(row, trustCounts, appStats)),
+        members: rows.map((row) => toMember(row, trustCounts, pageAppStats, actionStats, managerStats)),
     };
 }
 
@@ -333,6 +608,93 @@ export async function getMemberSummary() {
     };
 }
 
+/**
+ * App numbers for a period (start inclusive, end exclusive, as epoch ms):
+ * - appCreators: different members who own an app created in the period (Trust.created_at -> superuser.members_id)
+ * - appsWithLogins: different apps that had at least one member login in the period (member_session, action_type login)
+ * - appCreatorsJoined: those creators who also joined in the period (the numerator of the creators percentage)
+ * - loggedInMembers: different members who logged in to any app in the period
+ * - totalActivity: page_activity rows in the period that belong to those apps with a login (so the average below is
+ *   per active app; activity in apps nobody logged in to during the period is left out)
+ * - avgActivityPerApp: totalActivity / appsWithLogins (null when no app had a login)
+ */
+async function getAppPeriodStats(start, end) {
+    const from = new Date(start).toISOString();
+    const to = new Date(end).toISOString();
+
+    const createdOwners = new Set();
+    for (let page = 0; ; page += REG_PAGE) {
+        const { data } = unwrap(
+            await supabase.from('Trust').select('superuser_id').not('superuser_id', 'is', null).gte('created_at', from).lt('created_at', to).order('id').range(page, page + REG_PAGE - 1)
+        );
+        data.forEach((row) => createdOwners.add(row.superuser_id));
+        if (data.length < REG_PAGE) break;
+    }
+
+    const creators = new Set();
+    const ownerIds = [...createdOwners];
+    for (let i = 0; i < ownerIds.length; i += ID_CHUNK) {
+        const { data } = unwrap(await supabase.from('superuser').select('members_id').in('id', ownerIds.slice(i, i + ID_CHUNK)));
+        data.forEach((row) => row.members_id && creators.add(row.members_id));
+    }
+
+    // Of those creators, how many joined (became members) in the period too.
+    let appCreatorsJoined = 0;
+    const creatorIds = [...creators];
+    for (let i = 0; i < creatorIds.length; i += ID_CHUNK) {
+        const { data } = unwrap(
+            await supabase.from('Members').select('members_id').in('members_id', creatorIds.slice(i, i + ID_CHUNK)).gte('created_at', from).lt('created_at', to)
+        );
+        appCreatorsJoined += data.length;
+    }
+
+    const loggedInApps = new Set();
+    const loggedInMembers = new Set();
+    for (let page = 0; page < MAX_ACTION_ROWS; page += REG_PAGE) {
+        const { data } = unwrap(
+            await supabase
+                .from('member_session')
+                .select('trust_id, members_id')
+                .eq('action_type', 'login')
+                .not('trust_id', 'is', null)
+                .gte('action_at', from)
+                .lt('action_at', to)
+                .order('id')
+                .range(page, page + REG_PAGE - 1)
+        );
+        data.forEach((row) => {
+            loggedInApps.add(row.trust_id);
+            if (row.members_id) loggedInMembers.add(row.members_id);
+        });
+        if (data.length < REG_PAGE) break;
+    }
+
+    let totalActivity = 0;
+    for (let page = 0; page < MAX_ACTION_ROWS; page += REG_PAGE) {
+        const { data } = unwrap(
+            await supabase
+                .from('page_activity')
+                .select('trust_id')
+                .not('trust_id', 'is', null)
+                .gte('created_at', from)
+                .lt('created_at', to)
+                .order('id')
+                .range(page, page + REG_PAGE - 1)
+        );
+        totalActivity += data.filter((row) => loggedInApps.has(row.trust_id)).length;
+        if (data.length < REG_PAGE) break;
+    }
+
+    return {
+        appCreators: creators.size,
+        appCreatorsJoined,
+        appsWithLogins: loggedInApps.size,
+        loggedInMembers: loggedInMembers.size,
+        totalActivity,
+        avgActivityPerApp: loggedInApps.size ? Math.round((totalActivity / loggedInApps.size) * 10) / 10 : null,
+    };
+}
+
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const MAX_DAILY_POINTS = 62; // longer periods are counted per week so the graph stays readable
@@ -372,11 +734,23 @@ export async function getMemberGrowth(range, now = Date.now()) {
         counts.push(...batch);
     }
 
+    const appPeriod = await getAppPeriodStats(start, end);
+
+    // Apps (Trust rows) created in the whole selected period, and how many exist in all.
+    const trustHead = { count: 'exact', head: true };
+    const [created, all] = await Promise.all([
+        supabase.from('Trust').select('id', trustHead).gte('created_at', new Date(start).toISOString()).lt('created_at', new Date(end).toISOString()),
+        supabase.from('Trust').select('id', trustHead),
+    ]);
+
     return {
         period: { from: range.firstDay, to: range.lastDay },
         granularity,
         counts,
         total: counts.reduce((sum, n) => sum + n, 0),
+        appsCreated: unwrap(created).count,
+        totalApps: unwrap(all).count,
+        ...appPeriod,
     };
 }
 
