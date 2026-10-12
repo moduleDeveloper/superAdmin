@@ -1,17 +1,18 @@
 name: Deploy superAdmin to VPS
 
+# Jab bhi developer main branch par push ya PR merge kare, ye chalega
 on:
   push:
     branches: [main]
-  workflow_dispatch:
+  workflow_dispatch: # GitHub Actions tab se manually bhi chala sakte ho
 
 concurrency:
   group: deploy-main
   cancel-in-progress: false
 
 env:
-  FRONTEND_PATH: /var/www/superadmin/superAdmin/dist
-  BACKEND_PATH: /var/www/superadmin/backend
+  FRONTEND_PATH: /var/www/superadmin/superAdmin/dist # nginx ka root
+  BACKEND_PATH: /var/www/superadmin/backend          # pm2 ka exec cwd
   PM2_NAME: superadmin
 
 jobs:
@@ -29,14 +30,17 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      # ---------- FRONTEND BUILD (React + Vite) ----------
       - name: Frontend install + build
         working-directory: frontend
         run: |
           npm ci
           npm run build
         env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_API_BASE_URL: https://investors.teiltd.in/api
+          VITE_AUTH_API_URL: https://investors.teiltd.in/api/auth
 
+      # ---------- SSH SETUP ----------
       - name: SSH setup
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
@@ -46,6 +50,7 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p ${{ secrets.VPS_PORT }} -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
+      # ---------- FRONTEND DEPLOY ----------
       - name: Upload frontend (dist)
         run: |
           rsync -avz --delete \
@@ -53,8 +58,10 @@ jobs:
             frontend/dist/ \
             ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ env.FRONTEND_PATH }}/
 
+      # ---------- BACKEND DEPLOY ----------
       - name: Upload backend
         run: |
+          # --delete nahi lagaya, taaki server ki .env / uploads / logs safe rahein
           rsync -avz \
             --exclude 'node_modules' \
             --exclude '.env' \
