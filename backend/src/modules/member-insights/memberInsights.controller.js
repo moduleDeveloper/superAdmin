@@ -1,6 +1,7 @@
 import { resolveRange } from '../../utils/dateRange.js';
 import { getMemberActivity } from './memberActivity.service.js';
 import {
+    getMemberApps,
     getMemberGrowth,
     getMemberSummary,
     getMemberTrusts,
@@ -17,7 +18,7 @@ const fail = (res, status, message) => res.status(status).json({ success: false,
 
 export async function fetchMembers(req, res) {
     try {
-        const { search = '', trust = '', appDownload = 'all', sort = 'desc', sortBy = 'createdAt' } = req.query;
+        const { search = '', trust = '', appDownload = 'all', sort = 'desc', sortBy = 'createdAt', columns = 'all' } = req.query;
         const page = Number.parseInt(req.query.page ?? '1', 10);
         const pageSize = Number.parseInt(req.query.pageSize ?? '25', 10);
 
@@ -27,6 +28,7 @@ export async function fetchMembers(req, res) {
         if (!Object.hasOwn(SORT_COLUMNS, sortBy)) return fail(res, 400, `sortBy must be one of ${Object.keys(SORT_COLUMNS).join(', ')}`);
         if (!['all', 'yes', 'no'].includes(appDownload)) return fail(res, 400, 'appDownload must be all, yes or no');
         if (trust && !UUID_PATTERN.test(trust)) return fail(res, 400, 'Invalid trust id');
+        if (!['all', 'core'].includes(columns)) return fail(res, 400, 'columns must be all or core');
 
         // Optional: only members who joined in the chosen period (today / 7d / 30d / custom, like the trust pages).
         let range = null;
@@ -44,6 +46,7 @@ export async function fetchMembers(req, res) {
             trustId: trust || null,
             appDownload,
             range,
+            withActions: columns === 'all',
         });
 
         return res.json({ success: true, data });
@@ -117,5 +120,27 @@ export async function fetchMemberActivity(req, res) {
     } catch (error) {
         console.error('fetchMemberActivity failed:', error);
         return fail(res, 500, 'Failed to load member activity');
+    }
+}
+
+export async function fetchMemberApps(req, res) {
+    try {
+        const { memberId } = req.params;
+        if (!UUID_PATTERN.test(memberId)) return fail(res, 400, 'Invalid member id');
+
+        // optional period (same range params as the other pages): the activity counts are for that period, else all time
+        let range = null;
+        if (req.query.range) {
+            range = resolveRange(req.query);
+            if (range.error) return fail(res, 400, range.error);
+        }
+
+        const data = await getMemberApps(memberId, range);
+        if (!data) return fail(res, 404, 'Member not found');
+
+        return res.json({ success: true, data });
+    } catch (error) {
+        console.error('fetchMemberApps failed:', error);
+        return fail(res, 500, 'Failed to load member apps');
     }
 }
