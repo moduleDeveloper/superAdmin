@@ -1,10 +1,21 @@
+import { queryClient } from '../../../lib/queryClient';
+
 const AUTH_API_URL = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5005/api/auth';
 
 export const TOKEN_KEY = 'token';
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 
-export const logout = () => localStorage.removeItem(TOKEN_KEY);
+/** Signing out also forgets cached data and saved table settings, so the next user never sees them. */
+export const logout = () => {
+  localStorage.removeItem(TOKEN_KEY);
+  queryClient.clear();
+  try {
+    sessionStorage.clear();
+  } catch {
+    // storage unavailable: nothing was saved
+  }
+};
 
 export async function login(phoneNo, secretCode) {
   let response;

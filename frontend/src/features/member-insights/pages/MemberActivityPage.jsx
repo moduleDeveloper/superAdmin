@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
+import BackLink from '../../../components/BackLink';
 import AreaChart from '../../../components/AreaChart';
 import OverviewPanel from '../../../components/OverviewPanel';
 import StatsGrid from '../../../components/StatsGrid';
@@ -60,9 +61,7 @@ function MemberActivityPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <Link to={`/member-insights/${memberId}/trusts`} className="text-sm font-medium text-[#b04a4f] hover:underline">
-        ← Back to member&apos;s trusts
-      </Link>
+      <BackLink to={`/member-insights/${memberId}/trusts`} label="Back to member's trusts" />
       <h1 className="mt-3 text-lg font-bold tracking-tight lg:text-3xl">
         Member Activity{member ? ` - ${member.name ?? 'Unnamed member'}` : ''}
       </h1>

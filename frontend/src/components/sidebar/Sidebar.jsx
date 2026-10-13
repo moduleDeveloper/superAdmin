@@ -1,16 +1,27 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { logout } from '../../features/auth/services/authService';
 import Logo from '../Logo';
-import { DashboardIcon, InsightsIcon, LogoutIcon, MembersIcon } from './icons';
+import { DashboardIcon, InsightsIcon, LogoutIcon, MarketingIcon, MembersIcon } from './icons';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: DashboardIcon, end: true },
-  { to: '/organization-insights', label: 'Organization Insights', icon: InsightsIcon },
+  { to: '/organization-insights', also: ['/trust-insights'], label: 'Organization Insights', icon: InsightsIcon },
   { to: '/member-insights', label: 'Member Insights', icon: MembersIcon },
+  { to: '/marketing', label: 'Marketing', icon: MarketingIcon },
 ];
 
-const linkClass = (collapsed) => ({ isActive }) =>
+/**
+ * Which menu item a page belongs to. A page can say so itself (a link passes state={{ section: '/organization-insights' }}),
+ * e.g. a member's page opened from Organization Insights stays under Organization Insights; otherwise the address decides.
+ */
+const isActiveItem = ({ to, end, also = [] }, pathname, section) => {
+  if (section) return section === to;
+  if (end) return pathname === to;
+  return [to, ...also].some((base) => pathname === base || pathname.startsWith(`${base}/`));
+};
+
+const linkClass = (collapsed, isActive) =>
   `flex items-center gap-3 rounded-full px-5 py-3 text-[0.95rem] font-medium transition ${collapsed ? 'lg:justify-center lg:px-0' : ''} ${
     isActive
       ? 'bg-gradient-to-r from-[#ee7b3e] via-[#b04a4f] to-[#5b2650] text-white shadow-[0_8px_18px_rgba(120,40,70,0.3)]'
@@ -20,6 +31,7 @@ const linkClass = (collapsed) => ({ isActive }) =>
 /** `collapsed` only applies on large screens (an icon strip); the phone drawer is always the full menu. */
 function Sidebar({ open, onClose, collapsed = false }) {
   const navigate = useNavigate();
+  const { pathname, state } = useLocation();
 
   const handleLogout = () => {
     logout();
@@ -53,12 +65,23 @@ function Sidebar({ open, onClose, collapsed = false }) {
         <div className={`mx-2 mt-4 h-0.5 w-11 bg-[#e8793f] ${collapsed ? 'lg:mx-auto lg:w-8' : ''}`} />
 
         <nav className="mt-10 flex flex-col gap-2">
-          {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
-            <NavLink key={to} to={to} end={end} className={linkClass(collapsed)} onClick={onClose} title={collapsed ? label : undefined}>
-              <Icon />
-              <span className={collapsed ? 'lg:sr-only' : ''}>{label}</span>
-            </NavLink>
-          ))}
+          {NAV_ITEMS.map((item) => {
+            const { to, label, icon: Icon } = item;
+            const active = isActiveItem(item, pathname, state?.section);
+            return (
+              <Link
+                key={to}
+                to={to}
+                aria-current={active ? 'page' : undefined}
+                className={linkClass(collapsed, active)}
+                onClick={onClose}
+                title={collapsed ? label : undefined}
+              >
+                <Icon />
+                <span className={collapsed ? 'lg:sr-only' : ''}>{label}</span>
+              </Link>
+            );
+          })}
         </nav>
 
         <button

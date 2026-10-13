@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 
+import BackLink from '../../../components/BackLink';
 import PeriodFilter from '../../../components/PeriodFilter';
 import Avatar from '../../../components/Avatar';
 import ScrollTable from '../../../components/ScrollTable';
@@ -65,9 +66,7 @@ function MemberAppsPage() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <Link to="/member-insights" className="text-sm font-medium text-[#b04a4f] hover:underline">
-        ← Back to Member Insights
-      </Link>
+      <BackLink to="/member-insights" label="Back to Member Insights" />
       <h1 className="mt-3 text-3xl font-bold tracking-tight">Apps created by {member ? member.name ?? 'Unnamed member' : 'member'}</h1>
       {member && (
         <p className="mt-1 text-[#5b627a]">

@@ -1,5 +1,7 @@
 import { Link, useLocation, useParams } from 'react-router-dom';
 
+import BackLink from '../../../components/BackLink';
+
 import MemberLoginsTable from '../components/members/MemberLoginsTable';
 import { useTrustMemberLogins } from '../hooks/useTrustMemberLogins';
 
@@ -16,9 +18,7 @@ function TrustMemberLoginsPage() {
           ← Back to member&apos;s apps
         </Link>
       ) : (
-        <Link to="/organization-insights" className="text-sm font-medium text-[#b04a4f] hover:underline">
-          ← Back to Trust Insights
-        </Link>
+        <BackLink to="/organization-insights" label="Back to Trust Insights" />
       )}
       <h1 className="mt-3 text-3xl font-bold tracking-tight">Unique Member Logins</h1>
       <p className="mt-1 text-[#5b627a]">

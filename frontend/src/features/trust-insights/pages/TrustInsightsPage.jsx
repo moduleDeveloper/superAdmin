@@ -1,16 +1,19 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef } from 'react';
 
 import AreaChart from '../../../components/AreaChart';
 import OverviewPanel from '../../../components/OverviewPanel';
 import Pagination from '../../../components/Pagination';
 import SearchInput from '../../../components/SearchInput';
 import { usePinned } from '../../../hooks/usePinned';
+import { useSessionState } from '../../../hooks/useSessionState';
+import { useStoredToggle } from '../../../hooks/useStoredToggle';
 import OverviewStats from '../components/overview/OverviewStats';
 import PeriodFilter from '../../../components/PeriodFilter';
 import TrustTable from '../components/TrustTable';
 import { useTrustInsights } from '../hooks/useTrustInsights';
 import { searchTrusts } from '../utils/searchTrusts';
 import { periodTitle } from '../utils/periodTitle';
+import { EXTRA_COLUMN_COUNT, hiddenSortLabel } from '../utils/trustColumns';
 import { nextSort, sortTrusts } from '../utils/sortTrusts';
 import { buildCreationSeries } from '../utils/trustSeries';
 
@@ -20,17 +23,19 @@ const DEFAULT_PAGE_SIZE = 25;
 const PIN_OFFSET = 88; // px = 4rem header + 1.5rem gap; matches the panel's lg:top-[5.5rem]
 
 function TrustInsightsPage() {
-  const [filter, setFilter] = useState({ range: '7d' });
+  const [filter, setFilter] = useSessionState('trust-insights:filter', { range: '7d' });
   const { data, loadedAt, loading, error } = useTrustInsights(filter);
 
   // The graph always covers the whole selected period; the search box only narrows the table below it.
   const series = useMemo(() => buildCreationSeries(data?.trusts ?? [], data?.period, loadedAt), [data, loadedAt]);
 
   // Everything for the chosen period is already loaded, so searching, sorting and paging happen here.
-  const [search, setSearch] = useState('');
-  const [sort, setSort] = useState(DEFAULT_SORT);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [search, setSearch] = useSessionState('trust-insights:search', '');
+  const [sort, setSort] = useSessionState('trust-insights:sort', DEFAULT_SORT);
+  const [page, setPage] = useSessionState('trust-insights:page', 1);
+  const [pageSize, setPageSize] = useSessionState('trust-insights:page-size', DEFAULT_PAGE_SIZE);
+  const [showExtra, toggleExtra] = useStoredToggle('trust-table-extra-columns', false);
+  const hiddenSort = hiddenSortLabel(sort.key, showExtra);
 
   const searching = search !== '';
   const matches = useMemo(() => sortTrusts(searchTrusts(data?.trusts ?? [], search), sort), [data, search, sort]);
@@ -138,8 +143,23 @@ function TrustInsightsPage() {
             >
               Reset
             </button>
+            <button
+              type="button"
+              onClick={toggleExtra}
+              aria-pressed={showExtra}
+              title={showExtra ? 'Show only the main columns' : 'Show the less important columns too'}
+              className="h-10 shrink-0 cursor-pointer whitespace-nowrap rounded-xl border border-gray-300 px-4 text-sm font-medium text-[#3a3f55] hover:bg-gray-50"
+            >
+              {showExtra ? 'Hide extra columns' : `Show more columns (${EXTRA_COLUMN_COUNT})`}
+            </button>
           </div>
         </div>
+
+        {hiddenSort && (
+          <p className="-mt-2 mb-3 shrink-0 text-xs text-[#6b7188]">
+            Sorted by <span className="font-medium text-[#3a3f55]">{hiddenSort}</span>, which is hidden. Show more columns to see it.
+          </p>
+        )}
 
         <TrustTable
           trusts={pageRows}
@@ -148,6 +168,7 @@ function TrustInsightsPage() {
           sort={sort}
           onSort={changeSort}
           searching={searching}
+          showExtra={showExtra}
           pinned={pinned}
           scrollResetKey={`${currentPage}|${pageSize}|${sort.key}|${sort.dir}|${search}|${filter.range}`}
         />

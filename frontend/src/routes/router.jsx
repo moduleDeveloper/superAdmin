@@ -4,6 +4,8 @@ import { createBrowserRouter } from 'react-router-dom';
 import DashboardLayout from '../layouts/DashboardLayout';
 import ProtectedRoute from './ProtectedRoute';
 import PublicRoute from './PublicRoute';
+import NotFoundPage from '../features/errors/pages/NotFoundPage';
+import RouteErrorPage from '../features/errors/pages/RouteErrorPage';
 
 const LoginPage = lazy(() =>
   import('../features/auth/pages/LoginPage')
@@ -41,6 +43,14 @@ const MemberAppsPage = lazy(() =>
   import('../features/member-insights/pages/MemberAppsPage')
 );
 
+const MarketingPage = lazy(() =>
+  import('../features/marketing/pages/MarketingPage')
+);
+
+const TrustMemberActionsPage = lazy(() =>
+  import('../features/trust-insights/pages/TrustMemberActionsPage')
+);
+
 const lazyPage = (Component) => (
   <Suspense fallback={<div>Loading...</div>}>
     <Component />
@@ -48,6 +58,9 @@ const lazyPage = (Component) => (
 );
 
 export const router = createBrowserRouter([
+  {
+    errorElement: <RouteErrorPage />,
+    children: [
   {
     element: <PublicRoute />,
     children: [
@@ -76,8 +89,16 @@ export const router = createBrowserRouter([
             element: lazyPage(TrustActivityPage),
           },
           {
+            path: '/trust-insights/:trustId/member-actions',
+            element: lazyPage(TrustMemberActionsPage),
+          },
+          {
             path: '/trust-insights/:trustId/members',
             element: lazyPage(TrustMemberLoginsPage),
+          },
+          {
+            path: '/marketing',
+            element: lazyPage(MarketingPage),
           },
           {
             path: '/member-insights',
@@ -105,6 +126,12 @@ export const router = createBrowserRouter([
           },
         ],
       },
+    ],
+  },
+  {
+    path: '*',
+    element: <NotFoundPage />,
+  },
     ],
   },
 ]);

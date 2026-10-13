@@ -14,7 +14,7 @@ const pagerButton =
  * Latest activity. A table on every screen size: when it does not fit it scrolls sideways (drag or swipe) with
  * every column scrolling together, like the Organization and Member tables.
  */
-function RecentActivityTable({ rows, loading, showTrust = false }) {
+function RecentActivityTable({ rows, loading, showTrust = false, title, userLabel = 'User' }) {
   const [page, setPage] = useState(1);
 
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
@@ -24,7 +24,7 @@ function RecentActivityTable({ rows, loading, showTrust = false }) {
 
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_1px_3px_rgba(20,33,61,0.06)]">
-      <h3 className="text-sm font-semibold">{showTrust ? 'Recent Member Activity' : 'Recent User Panel Activity'}</h3>
+      <h3 className="text-sm font-semibold">{title ?? (showTrust ? 'Recent Member Activity' : 'Recent User Panel Activity')}</h3>
 
       {rows.length === 0 ? (
         <div className="mt-4 rounded-xl border border-gray-200 px-4 py-12 text-center text-sm text-[#5b627a]">
@@ -45,7 +45,7 @@ function RecentActivityTable({ rows, loading, showTrust = false }) {
               <thead className="bg-[#fbf6f3]">
                 <tr>
                   <th className={th}>Timestamp</th>
-                  <th className={th}>{showTrust ? 'Trust' : 'User'}</th>
+                  <th className={th}>{showTrust ? 'Trust' : userLabel}</th>
                   <th className={th}>Page Name</th>
                   <th className={th}>Route</th>
                   <th className={th}>Module</th>

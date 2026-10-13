@@ -1,22 +1,15 @@
-import { useEffect, useState } from 'react';
-
+import { useApiQuery } from '../../../hooks/useApiQuery';
 import { fetchMemberSummary, fetchTrustOptions } from '../services/memberInsightsService';
 
-/** Loads the summary cards and the trust dropdown options once. */
+/** Loads the summary cards and the trust dropdown options. `ready` once both have answered (or failed). */
 export function useMemberSummary() {
-  const [state, setState] = useState({ summary: null, trusts: [], error: '', ready: false });
+  const summary = useApiQuery(['member-summary'], fetchMemberSummary);
+  const trusts = useApiQuery(['trust-options'], fetchTrustOptions);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    Promise.all([fetchMemberSummary(), fetchTrustOptions()])
-      .then(([summary, trusts]) => !cancelled && setState({ summary, trusts, error: '', ready: true }))
-      .catch((err) => !cancelled && setState((prev) => ({ ...prev, error: err.message, ready: true })));
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return state;
+  return {
+    summary: summary.data,
+    trusts: trusts.data ?? [],
+    error: summary.error || trusts.error,
+    ready: !summary.loading && !trusts.loading,
+  };
 }

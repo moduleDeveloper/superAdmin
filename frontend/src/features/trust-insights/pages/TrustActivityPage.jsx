@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 
+import BackLink from '../../../components/BackLink';
 import AreaChart from '../../../components/AreaChart';
 import OverviewPanel from '../../../components/OverviewPanel';
 import StatsGrid from '../../../components/StatsGrid';
@@ -65,9 +66,7 @@ function TrustActivityPage() {
           ← Back to member&apos;s apps
         </Link>
       ) : (
-        <Link to="/organization-insights" className="text-sm font-medium text-[#b04a4f] hover:underline">
-          ← Back to Trust Insights
-        </Link>
+        <BackLink to="/organization-insights" label="Back to Trust Insights" />
       )}
       <h1 className="mt-3 text-lg lg:text-3xl font-bold tracking-tight">User Activity -{data ? `${data.trust.name} · ` : ''} </h1>
       <p className="mt-1 text-[#5b627a]">

@@ -4,6 +4,7 @@ import { listDayKeys, localDayKey, localHour } from '../../utils/dateRange.js';
 const PAGE_SIZE = 1000;
 const MAX_ROWS = 50000;
 const TOP_ROUTES = 7;
+const TOP_MEMBERS = 7;
 const RECENT_LIMIT = 100;
 
 const ACTIVITY_SELECT =
@@ -14,14 +15,15 @@ const ACTIVITY_SELECT =
 
 // Supabase caps each response (default 1000 rows), so page through the period.
 // `match` is the column filter, e.g. { trust_id } or { members_id, trust_id }.
-export async function fetchPeriodActivity(match, start, end) {
+// `requireColumn` keeps only rows where that column is filled (user_reg_id = registered users, members_id = members).
+export async function fetchPeriodActivity(match, start, end, requireColumn) {
     const rows = [];
 
     for (let from = 0; from < MAX_ROWS; from += PAGE_SIZE) {
-        const { data, error } = await supabase
-            .from('page_activity')
-            .select(ACTIVITY_SELECT)
-            .match(match)
+        let query = supabase.from('page_activity').select(ACTIVITY_SELECT).match(match);
+        if (requireColumn) query = query.not(requireColumn, 'is', null);
+
+        const { data, error } = await query
             .gte('created_at', start)
             .lt('created_at', end)
             .order('created_at', { ascending: false })
@@ -121,7 +123,22 @@ export function buildReport(rows, { firstDay, lastDay }) {
     };
 }
 
-export async function getTrustActivity(trustId, range, { user, target }) {
+/** Members who took the most actions, as [{ id, name, count }]. */
+function buildTopMembers(rows) {
+    const members = new Map();
+    rows.forEach((row) => {
+        const entry = members.get(row.members_id) ?? { id: row.members_id, name: userName(row), count: 0 };
+        entry.count += 1;
+        members.set(row.members_id, entry);
+    });
+    return [...members.values()].sort((a, b) => b.count - a.count).slice(0, TOP_MEMBERS);
+}
+
+/**
+ * One trust's activity. `source` picks which rows count: 'users' = registered users of the trust (user_reg_id, the
+ * "User Activity" column), 'members' = members using the app (members_id, the "App Actions" column).
+ */
+async function getTrustActivityFor(source, trustId, range, { user, target }) {
     const { data: trust, error } = await supabase
         .from('Trust')
         .select('id, name')
@@ -131,7 +148,8 @@ export async function getTrustActivity(trustId, range, { user, target }) {
     if (error) throw error;
     if (!trust) return null;
 
-    const periodRows = await fetchPeriodActivity({ trust_id: trustId }, range.start, range.end);
+    const column = source === 'members' ? 'members_id' : 'user_reg_id';
+    const periodRows = await fetchPeriodActivity({ trust_id: trustId }, range.start, range.end, column);
 
     const { module, pageId } = parseTarget(target);
     const rows = periodRows.filter(
@@ -146,5 +164,9 @@ export async function getTrustActivity(trustId, range, { user, target }) {
         period: { from: range.firstDay, to: range.lastDay },
         filters: buildFilterOptions(periodRows),
         ...buildReport(rows, range),
+        ...(source === 'members' ? { topMembers: buildTopMembers(rows) } : {}),
     };
 }
+
+export const getTrustActivity = (trustId, range, options) => getTrustActivityFor('users', trustId, range, options);
+export const getTrustMemberActions = (trustId, range, options) => getTrustActivityFor('members', trustId, range, options);

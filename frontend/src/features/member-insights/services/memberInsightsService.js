@@ -23,7 +23,7 @@ export const fetchMembers = (params) => apiGet('/member-insights', params);
  * GET /member-insights/growth?range=…  (same range params)
  * How many members joined per hour (one day) / day (up to ~2 months) / week, for the graph.
  * Response data: { period: { from, to }, granularity: 'hour'|'day'|'week', counts: [n, …], total,
- * appCreators (+ appCreatorsJoined: those who also joined in the period), appsWithLogins, loggedInMembers (different members who logged in during the period), totalActivity, avgActivityPerApp (totalActivity / appsWithLogins, null if none),
+ * appCreators (+ appCreatorsJoined: those who also joined in the period), appsWithLogins, loggedInMembers (different members who logged in during the period), totalActivity (user activity rows), appsWithActivity, avgActivityPerApp (totalActivity / appsWithActivity, null if none),
  * appsCreated (apps created in the period), totalApps }
  * counts[i] belongs to the bucket starting at period.from + i × (1 hour | 1 day | 7 days).
  */

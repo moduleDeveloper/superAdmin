@@ -139,6 +139,7 @@ function MemberLoginsTable({ members, loading }) {
                       {member.trustCount > 0 ? (
                         <Link
                           to={`/member-insights/${member.memberId}/trusts`}
+                          state={{ backLabel: 'Unique Member Logins', section: '/organization-insights' }}
                           title="View all trusts"
                           className="inline-block min-w-8 rounded-lg bg-[#fde6d6] px-2.5 py-1 text-center font-semibold tabular-nums text-[#b04a4f] hover:underline"
                         >

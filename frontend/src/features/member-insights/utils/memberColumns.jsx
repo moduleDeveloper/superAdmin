@@ -44,7 +44,9 @@ export const MEMBER_COLUMNS = [
     label: 'Members In Trust',
     cell: (m) =>
       m.trustCount > 0 ? (
-        <Link to={`/member-insights/${m.id}/trusts`} title="View all trusts" className={countLink}>
+        <Link
+        state={{ backLabel: 'Member Insights' }}
+        to={`/member-insights/${m.id}/trusts`} title="View all trusts" className={countLink}>
           {m.trustCount}
         </Link>
       ) : (
@@ -58,7 +60,9 @@ export const MEMBER_COLUMNS = [
     tdClass: 'tabular-nums text-[#3a3f55]',
     cell: (m, { appsQuery }) =>
       m.appCount > 0 ? (
-        <Link to={`/member-insights/${m.id}/apps${appsQuery}`} title="View apps created" className={countLink}>
+        <Link
+        state={{ backLabel: 'Member Insights' }}
+        to={`/member-insights/${m.id}/apps${appsQuery}`} title="View apps created" className={countLink}>
           {m.appCount}
         </Link>
       ) : (
@@ -81,6 +85,7 @@ export const MEMBER_COLUMNS = [
     cell: (m, { appsQuery }) =>
       m.managerActivity > 0 ? (
         <Link
+          state={{ backLabel: 'Member Insights' }}
           to={`/member-insights/${m.id}/apps${appsQuery}`}
           title="View the apps and their activity"
           className="font-semibold text-[#b04a4f] hover:underline"

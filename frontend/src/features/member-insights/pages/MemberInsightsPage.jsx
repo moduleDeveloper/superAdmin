@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef } from 'react';
 
 import AreaChart from '../../../components/AreaChart';
 import OverviewPanel from '../../../components/OverviewPanel';
@@ -7,6 +7,7 @@ import PeriodFilter from '../../../components/PeriodFilter';
 import StatsGrid from '../../../components/StatsGrid';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { usePinned } from '../../../hooks/usePinned';
+import { useSessionState } from '../../../hooks/useSessionState';
 import { useStoredToggle } from '../../../hooks/useStoredToggle';
 import { formatDateRange, formatDateTime } from '../../../utils/formatDate';
 import { periodTitle } from '../../trust-insights/utils/periodTitle';
@@ -30,8 +31,8 @@ const FIRST_DIRECTION = { createdAt: 'desc', appDownloaded: 'desc', appCount: 'd
 const number = (n) => (n == null ? undefined : n.toLocaleString('en-IN'));
 
 function MemberInsightsPage() {
-  const [period, setPeriod] = useState({ range: '7d' });
-  const [view, setView] = useState(DEFAULT_VIEW);
+  const [period, setPeriod] = useSessionState('member-insights:period', { range: '7d' });
+  const [view, setView] = useSessionState('member-insights:view', DEFAULT_VIEW);
   const debouncedSearch = useDebouncedValue(view.search);
 
   // The less important columns can be hidden; the choice is remembered. Hidden, the server skips their (slowest) lookups.
@@ -122,7 +123,7 @@ function MemberInsightsPage() {
       marker: '#e8793f',
       label: 'Avg User Activity per App',
       value: growth.data ? (growth.data.avgActivityPerApp ?? '—') : undefined,
-      hint: growth.data?.avgActivityPerApp != null ? `${number(growth.data.totalActivity)} activities ÷ ${number(growth.data.appsWithLogins)} apps` : growth.data ? 'No app had a login in the period' : undefined,
+      hint: growth.data?.avgActivityPerApp != null ? `${number(growth.data.totalActivity)} user activities ÷ ${number(growth.data.appsWithActivity)} apps` : growth.data ? 'No user activity in the period' : undefined,
     },
   ];
 
