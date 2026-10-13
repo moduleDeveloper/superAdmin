@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
+
+import BackLink from '../../../components/BackLink';
 
 import Avatar from '../../../components/Avatar';
 import ScrollTable from '../../../components/ScrollTable';
@@ -32,6 +34,7 @@ function SummaryBar({ summary }) {
 }
 
 function MemberTrustsPage() {
+  const location = useLocation();
   const { memberId } = useParams();
   const { data, loading, error } = useMemberTrusts(memberId);
   const [search, setSearch] = useState('');
@@ -51,9 +54,7 @@ function MemberTrustsPage() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <Link to="/member-insights" className="text-sm font-medium text-[#b04a4f] hover:underline">
-        ← Back to Member Insights
-      </Link>
+      <BackLink to="/member-insights" label="Back to Member Insights" />
       <h1 className="mt-3 text-3xl font-bold tracking-tight">Trusts of {member ? member.name ?? 'Unnamed member' : 'member'}</h1>
       {member && (
         <p className="mt-1 text-[#5b627a]">
@@ -118,6 +119,7 @@ function MemberTrustsPage() {
                           {trust.trustId ? (
                             <Link
                               to={`/member-insights/${memberId}/activity?trust=${trust.trustId}`}
+                              state={{ backLabel: "Member's Trusts", section: location.state?.section }}
                               title="View this member's activity in this trust"
                               className="font-semibold text-[#b04a4f] hover:underline">
                               {trust.name}

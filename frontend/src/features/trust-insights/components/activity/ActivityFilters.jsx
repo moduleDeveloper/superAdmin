@@ -5,13 +5,13 @@ const select =
   'mt-1.5 h-10 w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-[#e8793f] focus:ring-2 focus:ring-[#e8793f]/20';
 
 /** `trusts` ([{ id, name, isActive }]) swaps the User select for a Trust select (used on a member's activity page). */
-function ActivityFilters({ filter, options, period, onChange, onReset, canReset, trusts }) {
+function ActivityFilters({ filter, options, period, onChange, onReset, canReset, trusts, userLabel = 'User' }) {
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_1px_3px_rgba(20,33,61,0.06)]">
       {/* One row of four only when there is room (≥ xl). Below that: date range on its own row, the two selects side by side. */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[1fr_auto_1fr_auto] xl:items-start">
         <label className="block text-sm font-semibold">
-          {trusts ? 'Trust' : 'User'}
+          {trusts ? 'Trust' : userLabel}
           {trusts ? (
             <select
               className={`${select} font-normal`}
@@ -31,7 +31,7 @@ function ActivityFilters({ filter, options, period, onChange, onReset, canReset,
               value={filter.user ?? ''}
               onChange={(e) => onChange({ user: e.target.value || undefined })}
             >
-              <option value="">All users</option>
+              <option value="">All {userLabel.toLowerCase()}s</option>
               {options.users.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.name}

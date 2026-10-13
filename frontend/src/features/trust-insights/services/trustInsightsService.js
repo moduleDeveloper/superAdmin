@@ -9,7 +9,7 @@ import { apiGet } from '../../../lib/apiClient';
  *   totalTrusts, createdToday,
  *   period: { count, from, to },
  *   lastTrust: { name, createdAt } | null,
- *   trusts: [{ id, name, logoUrl, appType, superUserName, superUserNumber, activityNumber, lastActivityAt,
+ *   trusts: [{ id, name, logoUrl, appType, website, superUserName, superUserNumber, activityNumber, appActions, lastActivityAt,
  *             uniqueMemberLogins, lastMemberLoginAt, createdAt }]
  * }
  */
@@ -32,6 +32,14 @@ export const fetchTrustInsights = ({ range, from, to }) =>
  */
 export const fetchTrustActivity = (trustId, { range, from, to, user, target }) =>
   apiGet(`/trust-insights/${trustId}/activity`, { range, from, to, user, target });
+
+/**
+ * GET /trust-insights/:trustId/member-actions
+ * Same params and response as the activity above, but for the members using the trust's app (App Actions);
+ * the user filter lists members, and the response adds topMembers: [{ id, name, count }].
+ */
+export const fetchTrustMemberActions = (trustId, { range, from, to, user, target }) =>
+  apiGet(`/trust-insights/${trustId}/member-actions`, { range, from, to, user, target });
 
 /**
  * GET /trust-insights/:trustId/members

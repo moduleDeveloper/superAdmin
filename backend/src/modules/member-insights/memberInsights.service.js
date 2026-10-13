@@ -614,9 +614,9 @@ export async function getMemberSummary() {
  * - appsWithLogins: different apps that had at least one member login in the period (member_session, action_type login)
  * - appCreatorsJoined: those creators who also joined in the period (the numerator of the creators percentage)
  * - loggedInMembers: different members who logged in to any app in the period
- * - totalActivity: page_activity rows in the period that belong to those apps with a login (so the average below is
- *   per active app; activity in apps nobody logged in to during the period is left out)
- * - avgActivityPerApp: totalActivity / appsWithLogins (null when no app had a login)
+ * - totalActivity: page_activity rows in the period that have a user_reg_id (user activity)
+ * - appsWithActivity: different apps those rows belong to
+ * - avgActivityPerApp: totalActivity / appsWithActivity (null when there was no user activity)
  */
 async function getAppPeriodStats(start, end) {
     const from = new Date(start).toISOString();
@@ -669,19 +669,25 @@ async function getAppPeriodStats(start, end) {
         if (data.length < REG_PAGE) break;
     }
 
+    // User activity per app, counted by the database in one request per 1000 apps (an embedded count, no activity rows downloaded).
     let totalActivity = 0;
-    for (let page = 0; page < MAX_ACTION_ROWS; page += REG_PAGE) {
+    let appsWithActivity = 0;
+    for (let page = 0; ; page += REG_PAGE) {
         const { data } = unwrap(
             await supabase
-                .from('page_activity')
-                .select('trust_id')
-                .not('trust_id', 'is', null)
-                .gte('created_at', from)
-                .lt('created_at', to)
+                .from('Trust')
+                .select('id, page_activity(count)')
+                .not('page_activity.user_reg_id', 'is', null)
+                .gte('page_activity.created_at', from)
+                .lt('page_activity.created_at', to)
                 .order('id')
                 .range(page, page + REG_PAGE - 1)
         );
-        totalActivity += data.filter((row) => loggedInApps.has(row.trust_id)).length;
+        data.forEach((row) => {
+            const n = row.page_activity?.[0]?.count ?? 0;
+            totalActivity += n;
+            if (n > 0) appsWithActivity += 1;
+        });
         if (data.length < REG_PAGE) break;
     }
 
@@ -691,7 +697,8 @@ async function getAppPeriodStats(start, end) {
         appsWithLogins: loggedInApps.size,
         loggedInMembers: loggedInMembers.size,
         totalActivity,
-        avgActivityPerApp: loggedInApps.size ? Math.round((totalActivity / loggedInApps.size) * 10) / 10 : null,
+        appsWithActivity,
+        avgActivityPerApp: appsWithActivity ? Math.round((totalActivity / appsWithActivity) * 10) / 10 : null,
     };
 }
 

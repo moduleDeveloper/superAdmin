@@ -13,9 +13,11 @@ const toTrust = (row, logins) => ({
     name: row.name,
     logoUrl: row.icon_url,
     appType: row.keyword?.trim() || null,
+    website: [row.shareApp_links].flat()[0]?.web_app_url?.trim() || null,
     superUserName: row.superuser?.name ?? null,
     superUserNumber: row.superuser?.mobile ?? null,
-    activityNumber: row.page_activity?.[0]?.count ?? 0,
+    activityNumber: row.user_activity?.[0]?.count ?? 0,
+    appActions: row.member_actions?.[0]?.count ?? 0,
     lastActivityAt: row.last_activity?.[0]?.created_at ?? null,
     uniqueMemberLogins: logins?.uniqueMembers ?? 0,
     lastMemberLoginAt: logins?.lastLoginAt ?? null,
@@ -28,10 +30,13 @@ export async function getTrustInsights({ start, end, firstDay, lastDay, todaySta
         supabase.from('Trust').select('id', { count: 'exact', head: true }).gte('created_at', todayStart),
         supabase
             .from('Trust')
-            // Both activity values are all-time; only the trust list itself follows the selected period.
+            // All activity values are all-time: activity / last activity = rows of registered users (user_reg_id), member_actions = rows of members (members_id); only the trust list itself follows the selected period.
             .select(
-                'id, name, icon_url, keyword, created_at, superuser:superuser_id(name, mobile), page_activity(count), last_activity:page_activity(created_at)'
+                'id, name, icon_url, keyword, created_at, shareApp_links(web_app_url), superuser:superuser_id(name, mobile), user_activity:page_activity(count), member_actions:page_activity(count), last_activity:page_activity(created_at)'
             )
+            .not('user_activity.user_reg_id', 'is', null)
+            .not('last_activity.user_reg_id', 'is', null)
+            .not('member_actions.members_id', 'is', null)
             .gte('created_at', start)
             .lt('created_at', end)
             .order('created_at', { referencedTable: 'last_activity', ascending: false })
