@@ -1,4 +1,5 @@
 import { resolveRange } from '../../utils/dateRange.js';
+import { getLeadPeriodStats } from '../marketing/leadStats.service.js';
 import { getMemberActivity } from './memberActivity.service.js';
 import {
     getMemberApps,
@@ -120,6 +121,20 @@ export async function fetchMemberActivity(req, res) {
     } catch (error) {
         console.error('fetchMemberActivity failed:', error);
         return fail(res, 500, 'Failed to load member activity');
+    }
+}
+
+/** Lead numbers for the selected period, shown as their own group on the Member Insights overview. */
+export async function fetchMemberLeads(req, res) {
+    try {
+        const range = resolveRange(req.query);
+        if (range.error) return fail(res, 400, range.error);
+
+        const data = await getLeadPeriodStats(range.start, range.end);
+        return res.json({ success: true, data });
+    } catch (error) {
+        console.error('fetchMemberLeads failed:', error);
+        return fail(res, 500, 'Failed to load leads');
     }
 }
 

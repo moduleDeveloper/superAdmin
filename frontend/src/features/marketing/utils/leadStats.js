@@ -7,6 +7,7 @@ export const COLORS = {
   facebook: '#3b6fd4',
   instagram: '#c2457a',
   website: '#2a8fa3',
+  google: '#d9a21b',
   other: '#9aa0b4',
   paid: '#e8793f',
   organic: '#1f8a3b',
@@ -19,7 +20,9 @@ const PLATFORM_NAMES = { fb: 'Facebook', ig: 'Instagram' };
 export function channelOf(lead) {
   if (PLATFORM_NAMES[lead.platform]) return PLATFORM_NAMES[lead.platform];
   if (/website/i.test(lead.source ?? '')) return 'Website';
-  return lead.source ? 'Meta (other)' : 'Other';
+  if (/google/i.test(lead.source ?? '')) return 'Google Ads';
+  if (/meta/i.test(lead.source ?? '')) return 'Meta (other)';
+  return lead.source?.trim() || 'Other';
 }
 
 const count = (leads, keyOf) => {
@@ -41,7 +44,7 @@ export const buildLeadSeries = (leads, period, now) =>
 
 export function channelSlices(leads) {
   const counts = count(leads, channelOf);
-  const color = { Facebook: COLORS.facebook, Instagram: COLORS.instagram, Website: COLORS.website };
+  const color = { Facebook: COLORS.facebook, Instagram: COLORS.instagram, Website: COLORS.website, 'Google Ads': COLORS.google };
   return [...counts]
     .map(([label, value]) => ({ label, value, color: color[label] ?? COLORS.other }))
     .sort((a, b) => b.value - a.value);
