@@ -8,8 +8,14 @@ import { useSessionState } from '../../../hooks/useSessionState';
 import { COLORS } from '../../marketing/utils/leadStats';
 import { periodTitle } from '../../trust-insights/utils/periodTitle';
 import { buildActivitySeries } from '../../trust-insights/utils/trustSeries';
+import CampaignTable from '../components/CampaignTable';
+import FunnelChart from '../components/FunnelChart';
+import SourceQualityCards from '../components/SourceQualityCards';
+import SourceSelect from '../components/SourceSelect';
 import LeadConversion from '../components/LeadConversion';
+import MostActiveApps from '../components/MostActiveApps';
 import TopTrusts from '../components/TopTrusts';
+import { useActiveApps } from '../hooks/useActiveApps';
 import { useDashboard } from '../hooks/useDashboard';
 
 const card = 'rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_1px_3px_rgba(20,33,61,0.06)]';
@@ -22,12 +28,38 @@ function DashboardPage() {
   const [filter, setFilter] = useSessionState('dashboard:filter', { range: '7d' });
   const { data, loadedAt, loading, error } = useDashboard(filter);
 
+  // Choosing an ad source card narrows the lead sections (funnel, campaigns, sources, conversion) to that source.
+  const [sourceKey, setSourceKey] = useSessionState('dashboard:source', null);
+  const source = data?.sources.find((s) => s.key === sourceKey) ?? null;
+  const leadData = source ? source.sections : data; // a source with no leads in this period falls back to all
+
+  // Most Active Apps has its own choice: an ad source, or the apps that came without an ad lead. The default list comes
+  // with the dashboard; any other choice is asked for (and cached) when picked.
+  const [appScope, setAppScope] = useSessionState('dashboard:app-scope', 'all');
+  const scopedApps = useActiveApps(filter, appScope);
+  const activeApps = appScope === 'all' ? data?.activeApps : scopedApps.data;
+  const activeAppsLoading = appScope === 'all' ? loading && !data : scopedApps.loading;
+
+  // Clicking a source card sets both the lead sections and the app list; each can be changed on its own afterwards.
+  const chooseSource = (key) => {
+    setSourceKey(key);
+    setAppScope(key ?? 'all');
+  };
+  const sourceControl = (
+    <SourceSelect
+      label="Show leads from"
+      value={source?.key ?? ''}
+      onChange={(value) => setSourceKey(value || null)}
+      options={[{ value: '', label: 'All sources' }, ...(data?.sources ?? []).map((s) => ({ value: s.key, label: `${s.label} (${s.leads})` }))]}
+    />
+  );
+
   const graphs = useMemo(() => {
     const build = (key) => buildActivitySeries(data?.series[key] ?? EMPTY_SERIES, data?.period, loadedAt);
     return { members: build('members'), trusts: build('trusts'), activity: build('activity'), leads: build('leads') };
   }, [data, loadedAt]);
 
-  const channels = (data?.leadChannels ?? []).map(({ label, count }) => ({
+  const channels = (leadData?.leadChannels ?? []).map(({ label, count }) => ({
     label,
     value: count,
     color: CHANNEL_COLORS[label] ?? COLORS.other,
@@ -87,6 +119,29 @@ function DashboardPage() {
         <StatsGrid stats={stats} loading={loading && !data} />
       </section>
 
+      <div className="mt-5">
+        <SourceQualityCards sources={data?.sources} selected={source?.key ?? null} onSelect={chooseSource} loading={loading && !data} />
+      </div>
+
+      <div className="mt-5">
+        <FunnelChart funnel={leadData?.funnel} loading={loading && !data} scope={source?.label} control={sourceControl} />
+      </div>
+
+      <div className="mt-5">
+        <CampaignTable campaigns={leadData?.campaigns} loading={loading && !data} scope={source?.label} control={sourceControl} />
+      </div>
+
+      <div className="mt-5">
+        <MostActiveApps
+          apps={activeApps?.apps}
+          scopeCounts={data?.activeApps.scopeCounts ?? activeApps?.scopeCounts}
+          scope={appScope}
+          onScopeChange={setAppScope}
+          filter={filter}
+          loading={activeAppsLoading}
+        />
+      </div>
+
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
         {chart('Members Joined', 'member', graphs.members)}
         {chart('Apps Created', 'app', graphs.trusts)}
@@ -97,9 +152,9 @@ function DashboardPage() {
       <div className="mt-5 grid gap-5 lg:grid-cols-3">
         <TopTrusts trusts={data?.topTrusts ?? []} filter={filter} loading={loading} />
         <section className={card}>
-          <DonutChart title="Lead Sources" slices={channels} loading={loading} />
+          <DonutChart title={source ? `Lead Sources · ${source.label}` : 'Lead Sources'} slices={channels} loading={loading} />
         </section>
-        <LeadConversion conversion={data?.leadConversion} loading={loading} />
+        <LeadConversion conversion={leadData?.leadConversion} loading={loading} scope={source?.label} />
       </div>
     </div>
   );

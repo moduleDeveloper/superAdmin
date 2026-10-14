@@ -15,6 +15,7 @@ import { buildCountSeries } from '../../trust-insights/utils/trustSeries';
 import MemberFilters from '../components/MemberFilters';
 import MemberTable from '../components/MemberTable';
 import { useMemberGrowth } from '../hooks/useMemberGrowth';
+import { useMemberLeads } from '../hooks/useMemberLeads';
 import { useMemberList } from '../hooks/useMemberList';
 import { useMemberSummary } from '../hooks/useMemberSummary';
 import { EXTRA_COLUMN_COUNT, hiddenSortLabel } from '../utils/memberColumns';
@@ -39,6 +40,7 @@ function MemberInsightsPage() {
   const [showExtra, toggleExtra] = useStoredToggle('member-table-extra-columns', false);
   const { summary, trusts, error: summaryError, ready } = useMemberSummary();
   const growth = useMemberGrowth(period);
+  const leads = useMemberLeads(period);
   const { data, loading, error } = useMemberList({
     page: view.page,
     pageSize: view.pageSize,
@@ -125,6 +127,42 @@ function MemberInsightsPage() {
       value: growth.data ? (growth.data.avgActivityPerApp ?? '—') : undefined,
       hint: growth.data?.avgActivityPerApp != null ? `${number(growth.data.totalActivity)} user activities ÷ ${number(growth.data.appsWithActivity)} apps` : growth.data ? 'No user activity in the period' : undefined,
     },
+    {
+      marker: '#b04a4f',
+      label: 'Avg App Activity per App',
+      value: growth.data ? (growth.data.avgAppActivityPerApp ?? '—') : undefined,
+      hint: growth.data?.avgAppActivityPerApp != null ? `${number(growth.data.totalAppActivity)} app activities ÷ ${number(growth.data.appsWithAppActivity)} apps` : growth.data ? 'No app activity in the period' : undefined,
+    },
+  ];
+
+  // A third group: the leads that came in during the period and how many of them joined as members.
+  const leadData = leads.data;
+  const leadStats = [
+    {
+      marker: '#2a8fa3',
+      label: 'Leads Received',
+      value: number(leadData?.received),
+      hint: leadData
+        ? leadData.channels.length > 0
+          ? leadData.channels.slice(0, 3).map((c) => `${number(c.count)} ${c.label}`).join(' · ')
+          : `of ${number(leadData.total)} in total`
+        : undefined,
+    },
+    {
+      marker: '#1f8a3b',
+      label: 'Became Members',
+      value: number(leadData?.converted),
+      // matched by mobile number: a member with the same number who joined after the lead came in
+      percent: leadData && share(leadData.converted, leadData.withMobile),
+      hint: leadData ? `of ${number(leadData.withMobile)} leads with a mobile number` : undefined,
+    },
+    {
+      marker: '#e8793f',
+      label: 'From Paid Ads',
+      value: number(leadData?.paid),
+      percent: leadData && share(leadData.paid, leadData.received),
+      hint: leadData ? `${number(leadData.organic)} organic` : undefined,
+    },
   ];
 
   // The table panel scrolls with the page until it reaches the top, then pins there and its rows scroll.
@@ -132,7 +170,7 @@ function MemberInsightsPage() {
   const pinned = usePinned(panelRef, PIN_OFFSET);
 
   const hiddenSort = hiddenSortLabel(view.sort.key, showExtra);
-  const anyError = error || summaryError || growth.error;
+  const anyError = error || summaryError || growth.error || leads.error;
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -154,9 +192,15 @@ function MemberInsightsPage() {
         summary={summary && growth.data && `Total members ${number(summary.totalMembers)} · Joined in period ${number(growth.data.total)}`}
         stats={<StatsGrid stats={stats} loading={!ready || !growth.data} />}
         extra={
-          <div className="rounded-xl border border-[#ebe0d7] bg-white/60">
-            <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-[0.08em] text-[#6b7188]">Apps in this period</p>
-            <StatsGrid stats={appStats} loading={!growth.data} />
+          <div className="space-y-4">
+            <div className="rounded-xl border border-[#ebe0d7] bg-white/60">
+              <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-[0.08em] text-[#6b7188]">Apps in this period</p>
+              <StatsGrid stats={appStats} loading={!growth.data} />
+            </div>
+            <div className="rounded-xl border border-[#ebe0d7] bg-white/60">
+              <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-[0.08em] text-[#6b7188]">Leads in this period</p>
+              <StatsGrid stats={leadStats} loading={!leads.data} />
+            </div>
           </div>
         }
         chart={

@@ -5,6 +5,7 @@ import {
     fetchMemberActivity,
     fetchMemberApps,
     fetchMemberGrowth,
+    fetchMemberLeads,
     fetchMembers,
     fetchMemberSummary,
     fetchMemberTrusts,
@@ -16,6 +17,7 @@ const router = Router();
 router.get('/', requireAuth, fetchMembers);
 router.get('/summary', requireAuth, fetchMemberSummary);
 router.get('/growth', requireAuth, fetchMemberGrowth);
+router.get('/leads', requireAuth, fetchMemberLeads);
 router.get('/trusts', requireAuth, fetchTrustOptions);
 router.get('/:memberId/trusts', requireAuth, fetchMemberTrusts);
 router.get('/:memberId/apps', requireAuth, fetchMemberApps);

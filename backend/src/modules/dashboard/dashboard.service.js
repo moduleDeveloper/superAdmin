@@ -1,11 +1,12 @@
 import { supabase } from '../../config/supabase.js';
 import { listDayKeys, localDayKey, localHour } from '../../utils/dateRange.js';
+import { getMostActiveApps } from './activeApps.service.js';
+import { leadSections, sourceQuality, traceLeadPeople } from '../marketing/leadStats.service.js';
 
 const PAGE_SIZE = 1000;
 const PAGE_BATCH = 8; // how many pages are fetched at once
 const MAX_ROWS = 50000;
 const TOP_TRUSTS = 5;
-const ID_CHUNK = 100;
 
 const unwrap = ({ data, count, error }) => {
     if (error) throw error;
@@ -13,7 +14,6 @@ const unwrap = ({ data, count, error }) => {
 };
 
 const head = { count: 'exact', head: true };
-const last10 = (value) => String(value ?? '').replace(/\D/g, '').slice(-10);
 
 /**
  * Every row of `table` created in [start, end), fetched in parallel pages. `orderBy` is a unique column, so rows
@@ -55,48 +55,16 @@ function buildSeries(timestamps, { firstDay, lastDay }) {
     };
 }
 
-/** Leads by where they came from (Facebook / Instagram / Website / other). */
-function leadChannel(lead) {
-    if (lead.platform === 'fb') return 'Facebook';
-    if (lead.platform === 'ig') return 'Instagram';
-    if (/website/i.test(lead.source ?? '')) return 'Website';
-    return lead.source ? 'Meta (other)' : 'Other';
-}
-
-/**
- * Of the leads received in the period, how many became members: a member with the same mobile number
- * (last 10 digits) who joined after the lead came in.
- */
-async function countConvertedLeads(leads) {
-    const received = new Map();
-    leads.forEach((lead) => {
-        const key = last10(lead.mobile);
-        if (key.length === 10) received.set(key, Math.min(received.get(key) ?? Infinity, new Date(lead.lead_received_at).getTime()));
-    });
-
-    const mobiles = [...received.keys()].map(Number);
-    const converted = new Set();
-    for (let i = 0; i < mobiles.length; i += ID_CHUNK) {
-        const { data } = unwrap(await supabase.from('Members').select('Mobile, created_at').in('Mobile', mobiles.slice(i, i + ID_CHUNK)));
-        data.forEach((member) => {
-            const key = last10(member.Mobile);
-            if (new Date(member.created_at).getTime() >= received.get(key)) converted.add(key);
-        });
-    }
-
-    return { withMobile: received.size, converted: converted.size };
-}
-
 /**
  * The investor dashboard: platform totals, how fast members / apps / leads / usage grew in the selected period,
  * the busiest apps, and where leads come from and how many became members. Only counts and small lists are sent.
  */
 export async function getDashboard({ start, end, firstDay, lastDay, todayStart }) {
-    const [members, trusts, activity, leads, totals] = await Promise.all([
+    const [members, trusts, activity, leads, totals, activeApps] = await Promise.all([
         fetchPeriodRows('Members', 'created_at, members_id', 'members_id', start, end),
         fetchPeriodRows('Trust', 'created_at, id', 'id', start, end),
         fetchPeriodRows('page_activity', 'created_at, id, trust_id, user_reg_id, members_id', 'id', start, end),
-        fetchPeriodRows('leads', 'created_at, id, lead_received_at, source, platform, mobile', 'id', start, end),
+        fetchPeriodRows('leads', 'created_at, id, lead_received_at, source, platform, mobile, campaign_name, adset_name', 'id', start, end),
         Promise.all([
             supabase.from('Members').select('members_id', head),
             supabase.from('Members').select('members_id', head).eq('app_download', true),
@@ -106,6 +74,7 @@ export async function getDashboard({ start, end, firstDay, lastDay, todayStart }
             supabase.from('leads').select('id', head),
             supabase.from('leads').select('id', head).gte('lead_received_at', todayStart),
         ]),
+        getMostActiveApps({ start, end }),
     ]);
     const [memberTotal, appDownloaded, memberToday, trustTotal, trustToday, leadTotal, leadToday] = totals.map((r) => unwrap(r).count);
 
@@ -120,9 +89,7 @@ export async function getDashboard({ start, end, firstDay, lastDay, todayStart }
     const { data: topNames } = top.length ? unwrap(await supabase.from('Trust').select('id, name').in('id', top.map(([id]) => id))) : { data: [] };
     const names = new Map(topNames.map((t) => [t.id, t.name]));
 
-    const channels = new Map();
-    periodLeads.forEach((lead) => channels.set(leadChannel(lead), (channels.get(leadChannel(lead)) ?? 0) + 1));
-
+    const trace = await traceLeadPeople(periodLeads);
     const range = { firstDay, lastDay };
     return {
         period: { from: firstDay, to: lastDay },
@@ -150,7 +117,8 @@ export async function getDashboard({ start, end, firstDay, lastDay, todayStart }
             leads: buildSeries(periodLeads.map((r) => r.lead_received_at), range),
         },
         topTrusts: top.map(([id, count]) => ({ id, name: names.get(id) ?? 'Unknown trust', count })),
-        leadChannels: [...channels].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count),
-        leadConversion: { leads: periodLeads.length, ...(await countConvertedLeads(periodLeads)) },
+        ...leadSections(periodLeads, trace), // funnel, campaigns, leadChannels, leadConversion for all leads
+        sources: sourceQuality(periodLeads, trace),
+        activeApps,
     };
 }

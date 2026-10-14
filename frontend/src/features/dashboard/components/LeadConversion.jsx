@@ -1,11 +1,11 @@
 import ChartCard from '../../trust-insights/components/activity/ChartCard';
 
 /** How many of the period's leads (that left a phone number) went on to join as members. */
-function LeadConversion({ conversion, loading }) {
+function LeadConversion({ conversion, loading, scope }) {
   const rate = conversion && conversion.withMobile > 0 ? Math.round((conversion.converted / conversion.withMobile) * 100) : null;
 
   return (
-    <ChartCard title="Leads Who Became Members">
+    <ChartCard title={scope ? `Leads Who Became Members · ${scope}` : 'Leads Who Became Members'}>
       {loading && !conversion ? (
         <div className="h-40 animate-pulse rounded-xl bg-gray-50" />
       ) : rate === null ? (
