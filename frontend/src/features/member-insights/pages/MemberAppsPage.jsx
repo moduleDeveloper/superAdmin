@@ -11,7 +11,7 @@ import { formatDateRange, formatDateTime } from '../../../utils/formatDate';
 import { useMemberApps } from '../hooks/useMemberApps';
 import { periodQuery } from '../utils/periodQuery';
 
-const Empty = () => <span className="text-[#9aa0b4]">—</span>;
+const Empty = () => <span className="text-(--c-faint)">—</span>;
 
 const FIRST_DIRECTION = { name: 'asc', legalName: 'asc', memberCount: 'desc', activityCount: 'desc', uniqueLogins: 'desc', createdAt: 'desc' };
 
@@ -69,7 +69,7 @@ function MemberAppsPage() {
       <BackLink to="/member-insights" label="Back to Member Insights" />
       <h1 className="mt-3 text-3xl font-bold tracking-tight">Apps created by {member ? member.name ?? 'Unnamed member' : 'member'}</h1>
       {member && (
-        <p className="mt-1 text-[#5b627a]">
+        <p className="mt-1 text-(--c-text-3)">
           {[member.mobile, member.email, member.companyName].filter(Boolean).join(' · ') || 'Every app this member created.'}
         </p>
       )}
@@ -95,7 +95,7 @@ function MemberAppsPage() {
               }
             />
           </div>
-          <p className="mt-1.5 text-xs text-[#6b7188]">{data?.period ? formatDateRange(data.period.from, data.period.to) : ''}</p>
+          <p className="mt-1.5 text-xs text-(--c-muted)">{data?.period ? formatDateRange(data.period.from, data.period.to) : ''}</p>
         </div>
       )}
 
@@ -105,7 +105,7 @@ function MemberAppsPage() {
             <div className="flex items-center gap-2.5">
               <h2 className="text-base font-semibold">Apps</h2>
               {data && (
-                <span className="rounded-full bg-[#fde6d6] px-2.5 py-0.5 text-xs font-semibold text-[#b04a4f]">{data.apps.length}</span>
+                <span className="rounded-full bg-(--c-accent-soft) px-2.5 py-0.5 text-xs font-semibold text-(--c-link)">{data.apps.length}</span>
               )}
             </div>
             <div className="sm:w-72">
@@ -137,7 +137,7 @@ function MemberAppsPage() {
 
                 {!loading && rows.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-[#5b627a]">
+                    <td colSpan={6} className="px-4 py-12 text-center text-(--c-text-3)">
                       {search ? 'No apps match your search.' : 'This member has not created any app.'}
                     </td>
                   </tr>
@@ -149,29 +149,29 @@ function MemberAppsPage() {
                       <div className="flex items-center gap-3">
                         <Avatar name={app.name} logoUrl={app.logoUrl} />
                         <div className="min-w-0">
-                          <Link to={activityPath(app.id)} className="font-semibold text-[#b04a4f] hover:underline">
+                          <Link to={activityPath(app.id)} className="font-semibold text-(--c-link) hover:underline">
                             {app.name}
                           </Link>
-                          <div className="mt-0.5 flex items-center gap-2 text-xs text-[#5b627a]">
+                          <div className="mt-0.5 flex items-center gap-2 text-xs text-(--c-text-3)">
                             {app.appType && <span>{app.appType}</span>}
                             {!app.isActive && <span className="rounded-full bg-gray-100 px-2 py-0.5 font-medium">Inactive</span>}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-[#3a3f55]">{app.legalName ?? <Empty />}</td>
+                    <td className="px-4 py-3 text-(--c-text-2)">{app.legalName ?? <Empty />}</td>
                     <td className="px-4 py-3 font-semibold tabular-nums">{app.memberCount.toLocaleString('en-IN')}</td>
                     <td className="px-4 py-3 tabular-nums">
                       {app.activityCount > 0 ? (
                         <Link
                           to={activityPath(app.id)}
                           title="View this app's user activity"
-                          className="font-semibold text-[#b04a4f] hover:underline"
+                          className="font-semibold text-(--c-link) hover:underline"
                         >
                           {app.activityCount.toLocaleString('en-IN')}
                         </Link>
                       ) : (
-                        <span className="text-[#9aa0b4]">0</span>
+                        <span className="text-(--c-faint)">0</span>
                       )}
                     </td>
                     <td className="px-4 py-3 tabular-nums">
@@ -179,15 +179,15 @@ function MemberAppsPage() {
                         <Link
                           to={`/member-insights/${memberId}/apps/${app.id}/members${periodQuery(period)}`}
                           title="View the members who logged in"
-                          className="font-semibold text-[#b04a4f] hover:underline"
+                          className="font-semibold text-(--c-link) hover:underline"
                         >
                           {app.uniqueLogins.toLocaleString('en-IN')}
                         </Link>
                       ) : (
-                        <span className="text-[#9aa0b4]">0</span>
+                        <span className="text-(--c-faint)">0</span>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-[#3a3f55]">{formatDateTime(app.createdAt)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-(--c-text-2)">{formatDateTime(app.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>

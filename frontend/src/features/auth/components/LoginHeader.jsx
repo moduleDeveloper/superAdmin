@@ -9,9 +9,9 @@ function LoginHeader() {
          SETU AI
         </p>
       </div>
-      <div className="hidden items-center gap-3 text-[0.65rem] font-medium uppercase tracking-[0.4em] text-[#3a3f55] sm:flex lg:pr-[1%]">
+      <div className="hidden items-center gap-3 text-[0.65rem] font-medium uppercase tracking-[0.4em] text-(--c-text-2) sm:flex lg:pr-[1%]">
         Investors
-        <span className="h-0.5 w-10 bg-[#e8793f]" />
+        <span className="h-0.5 w-10 bg-(--c-accent)" />
       </div>
     </header>
   );

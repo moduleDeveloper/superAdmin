@@ -14,14 +14,14 @@ function TrustMemberLoginsPage() {
   return (
     <div className="mx-auto max-w-6xl">
       {memberId ? (
-        <Link to={`/member-insights/${memberId}/apps${search}`} className="text-sm font-medium text-[#b04a4f] hover:underline">
+        <Link to={`/member-insights/${memberId}/apps${search}`} className="text-sm font-medium text-(--c-link) hover:underline">
           ← Back to member&apos;s apps
         </Link>
       ) : (
         <BackLink to="/organization-insights" label="Back to Trust Insights" />
       )}
       <h1 className="mt-3 text-3xl font-bold tracking-tight">Unique Member Logins</h1>
-      <p className="mt-1 text-[#5b627a]">
+      <p className="mt-1 text-(--c-text-3)">
         {data ? `${data.trust.name} · ` : ''}Members who have logged in to this trust, with their latest session event.
       </p>
 

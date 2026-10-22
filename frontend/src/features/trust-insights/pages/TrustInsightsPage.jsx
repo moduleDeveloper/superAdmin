@@ -91,7 +91,7 @@ function TrustInsightsPage() {
       <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="text-lg font-semibold">Trust Creation Overview</h2>
-          {/* <p className="mt-1 text-sm text-[#5b627a]">All trusts on the platform · based on creation date</p> */}
+          {/* <p className="mt-1 text-sm text-(--c-text-3)">All trusts on the platform · based on creation date</p> */}
         </div>
         <PeriodFilter filter={filter} onChange={changePeriod} />
       </div>
@@ -121,7 +121,7 @@ function TrustInsightsPage() {
           <div className="flex items-center gap-2.5">
             <h2 className="text-base font-semibold">Trusts Created in Selected Period</h2>
             {data && (
-              <span className="rounded-full bg-[#fde6d6] px-2.5 py-0.5 text-xs font-semibold text-[#b04a4f]">
+              <span className="rounded-full bg-(--c-accent-soft) px-2.5 py-0.5 text-xs font-semibold text-(--c-link)">
                 {searching ? `${matches.length} of ${data.period.count}` : data.period.count}
               </span>
             )}
@@ -139,7 +139,7 @@ function TrustInsightsPage() {
               type="button"
               onClick={resetTable}
               disabled={!canReset}
-              className="h-10 shrink-0 cursor-pointer rounded-xl border border-gray-300 px-4 text-sm font-medium text-[#3a3f55] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+              className="h-10 shrink-0 cursor-pointer rounded-xl border border-gray-300 px-4 text-sm font-medium text-(--c-text-2) hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Reset
             </button>
@@ -148,7 +148,7 @@ function TrustInsightsPage() {
               onClick={toggleExtra}
               aria-pressed={showExtra}
               title={showExtra ? 'Show only the main columns' : 'Show the less important columns too'}
-              className="h-10 shrink-0 cursor-pointer whitespace-nowrap rounded-xl border border-gray-300 px-4 text-sm font-medium text-[#3a3f55] hover:bg-gray-50"
+              className="h-10 shrink-0 cursor-pointer whitespace-nowrap rounded-xl border border-gray-300 px-4 text-sm font-medium text-(--c-text-2) hover:bg-gray-50"
             >
               {showExtra ? 'Hide extra columns' : `Show more columns (${EXTRA_COLUMN_COUNT})`}
             </button>
@@ -156,8 +156,8 @@ function TrustInsightsPage() {
         </div>
 
         {hiddenSort && (
-          <p className="-mt-2 mb-3 shrink-0 text-xs text-[#6b7188]">
-            Sorted by <span className="font-medium text-[#3a3f55]">{hiddenSort}</span>, which is hidden. Show more columns to see it.
+          <p className="-mt-2 mb-3 shrink-0 text-xs text-(--c-muted)">
+            Sorted by <span className="font-medium text-(--c-text-2)">{hiddenSort}</span>, which is hidden. Show more columns to see it.
           </p>
         )}
 

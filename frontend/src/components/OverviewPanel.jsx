@@ -32,7 +32,7 @@ function OverviewPanel({ stats, chart, summary, storageKey, className = '', extr
   const bodyId = useId();
 
   return (
-    <section className={`rounded-2xl border border-[#ebe0d7] bg-[#f7efe9] ${className}`}>
+    <section className={`rounded-2xl border border-(--c-border) bg-(--c-band) ${className}`}>
       <div className="flex items-center justify-between gap-3 px-4 py-2.5">
         <button
           type="button"
@@ -41,13 +41,13 @@ function OverviewPanel({ stats, chart, summary, storageKey, className = '', extr
           aria-controls={bodyId}
           aria-label={collapsed ? 'Show details and graph' : 'Hide details and graph'}
           title={collapsed ? 'Show details and graph' : 'Hide details and graph'}
-          className="-ml-1.5  inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 text-xs sm:min-h-0 sm:px-1.5 font-semibold uppercase tracking-[0.08em] text-[#6b7188] transition hover:bg-[#ebe0d7]/60 hover:text-[#14213d] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#e8793f]"
+          className="-ml-1.5  inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 text-xs sm:min-h-0 sm:px-1.5 font-semibold uppercase tracking-[0.08em] text-(--c-muted) transition hover:bg-(--c-border)/60 hover:text-(--c-text) focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--c-accent)"
         >
           <Chevron open={!collapsed} />
           {/* Details &amp; graph */}
         </button>
 
-        {collapsed && summary && <p className="min-w-0 truncate text-xs text-[#6b7188]">{summary}</p>}
+        {collapsed && summary && <p className="min-w-0 truncate text-xs text-(--c-muted)">{summary}</p>}
       </div>
 
       {/* Height animates between 0 and its natural size; `inert` keeps hidden content out of the tab order. */}
@@ -59,7 +59,7 @@ function OverviewPanel({ stats, chart, summary, storageKey, className = '', extr
         <div className="overflow-hidden">
           <div className="grid gap-4 px-4 pb-4 lg:grid-cols-[12fr_9fr]">
             {stats}
-            <div className="min-w-0 rounded-xl border border-[#ebe0d7] bg-white p-4 shadow-[0_1px_2px_rgba(80,40,20,0.05)]">{chart}</div>
+            <div className="min-w-0 rounded-xl border border-(--c-border) bg-white p-4 shadow-[0_1px_2px_rgba(80,40,20,0.05)]">{chart}</div>
           </div>
           {extra && <div className="px-4 pb-4">{extra}</div>}
         </div>

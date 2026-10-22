@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import Avatar from '../../../components/Avatar';
 import { formatDateTime } from '../../../utils/formatDate';
 
-const EMPTY = <span className="text-[#9aa0b4]">—</span>;
+const EMPTY = <span className="text-(--c-faint)">—</span>;
 
 const countLink =
-  'inline-block min-w-8 rounded-lg bg-[#fde6d6] px-2.5 py-1 text-center font-semibold tabular-nums text-[#b04a4f] hover:underline';
+  'inline-block min-w-8 rounded-lg bg-(--c-accent-soft) px-2.5 py-1 text-center font-semibold tabular-nums text-(--c-link) hover:underline';
 
 /**
  * The member table's columns, in order. `extra` columns are the less important ones: they can be hidden with the
@@ -18,7 +18,7 @@ export const MEMBER_COLUMNS = [
     id: 'createdAt',
     label: 'Created At',
     sortKey: 'createdAt',
-    tdClass: 'whitespace-nowrap text-[#3a3f55]',
+    tdClass: 'whitespace-nowrap text-(--c-text-2)',
     cell: (m) => formatDateTime(m.createdAt),
   },
   {
@@ -28,7 +28,7 @@ export const MEMBER_COLUMNS = [
     cell: (m) => (
       <div className="flex items-center gap-3">
         <Avatar name={m.name ?? '#'} />
-        {m.name ? <span className="font-semibold">{m.name}</span> : <span className="font-normal text-[#9aa0b4]">Unnamed member</span>}
+        {m.name ? <span className="font-semibold">{m.name}</span> : <span className="font-normal text-(--c-faint)">Unnamed member</span>}
       </div>
     ),
   },
@@ -36,7 +36,7 @@ export const MEMBER_COLUMNS = [
     id: 'mobile',
     label: 'Mobile',
     sortKey: 'mobile',
-    tdClass: 'tabular-nums text-[#3a3f55]',
+    tdClass: 'tabular-nums text-(--c-text-2)',
     cell: (m) => m.mobile ?? EMPTY,
   },
   {
@@ -50,14 +50,14 @@ export const MEMBER_COLUMNS = [
           {m.trustCount}
         </Link>
       ) : (
-        <span className="text-[#9aa0b4]">0</span>
+        <span className="text-(--c-faint)">0</span>
       ),
   },
   {
     id: 'apps',
     label: 'Apps Created',
     sortKey: 'appCount',
-    tdClass: 'tabular-nums text-[#3a3f55]',
+    tdClass: 'tabular-nums text-(--c-text-2)',
     cell: (m, { appsQuery }) =>
       m.appCount > 0 ? (
         <Link
@@ -74,7 +74,7 @@ export const MEMBER_COLUMNS = [
     label: 'Last App Created',
     sortKey: 'lastAppCreated',
     extra: true,
-    tdClass: 'whitespace-nowrap text-[#3a3f55]',
+    tdClass: 'whitespace-nowrap text-(--c-text-2)',
     cell: (m) => (m.lastAppCreatedAt ? formatDateTime(m.lastAppCreatedAt) : EMPTY),
   },
   {
@@ -88,7 +88,7 @@ export const MEMBER_COLUMNS = [
           state={{ backLabel: 'Member Insights' }}
           to={`/member-insights/${m.id}/apps${appsQuery}`}
           title="View the apps and their activity"
-          className="font-semibold text-[#b04a4f] hover:underline"
+          className="font-semibold text-(--c-link) hover:underline"
         >
           {m.managerActivity.toLocaleString('en-IN')}
         </Link>
@@ -109,11 +109,11 @@ export const MEMBER_COLUMNS = [
     label: 'App Last Action Taken',
     sortKey: 'lastAction',
     extra: true,
-    tdClass: 'whitespace-nowrap text-[#3a3f55]',
+    tdClass: 'whitespace-nowrap text-(--c-text-2)',
     cell: (m) => (m.lastActionAt ? formatDateTime(m.lastActionAt) : EMPTY),
   },
-  { id: 'email', label: 'Email', extra: true, tdClass: 'text-[#3a3f55]', cell: (m) => m.email ?? EMPTY },
-  { id: 'company', label: 'Company', extra: true, tdClass: 'text-[#3a3f55]', cell: (m) => m.companyName ?? EMPTY },
+  { id: 'email', label: 'Email', extra: true, tdClass: 'text-(--c-text-2)', cell: (m) => m.email ?? EMPTY },
+  { id: 'company', label: 'Company', extra: true, tdClass: 'text-(--c-text-2)', cell: (m) => m.companyName ?? EMPTY },
   {
     id: 'app',
     label: 'App',
@@ -121,7 +121,7 @@ export const MEMBER_COLUMNS = [
     cell: (m) => (
       <span
         className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${
-          m.appDownloaded ? 'bg-[#dff3e5] text-[#1f6b34]' : 'bg-gray-100 text-[#5b627a]'
+          m.appDownloaded ? 'bg-(--c-good-bg) text-(--c-good-text)' : 'bg-gray-100 text-(--c-text-3)'
         }`}
       >
         {m.appDownloaded ? 'Downloaded' : 'Not yet'}

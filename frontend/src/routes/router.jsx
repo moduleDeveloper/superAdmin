@@ -43,6 +43,14 @@ const MemberAppsPage = lazy(() =>
   import('../features/member-insights/pages/MemberAppsPage')
 );
 
+const CampaignLeadsPage = lazy(() =>
+  import('../features/dashboard/pages/CampaignLeadsPage')
+);
+
+const AppLoginsPage = lazy(() =>
+  import('../features/dashboard/pages/AppLoginsPage')
+);
+
 const MarketingPage = lazy(() =>
   import('../features/marketing/pages/MarketingPage')
 );
@@ -79,6 +87,14 @@ export const router = createBrowserRouter([
           {
             path: '/',
             element: lazyPage(DashboardPage),
+          },
+          {
+            path: '/campaign-leads',
+            element: lazyPage(CampaignLeadsPage),
+          },
+          {
+            path: '/app-logins/:trustId',
+            element: lazyPage(AppLoginsPage),
           },
           {
             path: '/organization-insights',

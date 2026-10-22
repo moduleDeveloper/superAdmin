@@ -11,10 +11,10 @@ function RoutesChart({ routes, loading }) {
         <ul className="space-y-3">
           {routes.map((item) => (
             <li key={item.route} title={`${item.name} (${item.route})`} className="flex items-center gap-3 text-sm">
-              <span className="w-44 shrink-0 truncate text-[#3a3f55]">{item.route}</span>
+              <span className="w-44 shrink-0 truncate text-(--c-text-2)">{item.route}</span>
               <span className="h-2.5 flex-1 rounded-full bg-gray-100">
                 <span
-                  className="block h-full rounded-full bg-[#e8793f]"
+                  className="block h-full rounded-full bg-(--c-accent)"
                   style={{ width: `${(item.count / max) * 100}%` }}
                 />
               </span>

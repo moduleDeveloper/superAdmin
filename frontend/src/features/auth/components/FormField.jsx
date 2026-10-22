@@ -1,5 +1,5 @@
 const fieldBox =
-  'flex h-14 items-center rounded-xl border border-gray-300 bg-white transition focus-within:border-[#e8793f] focus-within:ring-2 focus-within:ring-[#e8793f]/25';
+  'flex h-14 items-center rounded-xl border border-gray-300 bg-white transition focus-within:border-(--c-accent) focus-within:ring-2 focus-within:ring-(--c-accent)/25';
 
 function FormField({ id, label, children }) {
   return (

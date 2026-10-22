@@ -6,12 +6,12 @@ const hourFormat = new Intl.DateTimeFormat('en-GB', { timeZone: BUSINESS_TZ, hou
 export const COLORS = {
   facebook: '#3b6fd4',
   instagram: '#c2457a',
-  website: '#2a8fa3',
+  website: '#9333ea',
   google: '#d9a21b',
-  other: '#9aa0b4',
-  paid: '#e8793f',
-  organic: '#1f8a3b',
-  unknown: '#c9c3bd',
+  other: 'var(--c-faint)',
+  paid: 'var(--c-accent)',
+  organic: 'var(--c-good)',
+  unknown: 'var(--c-faint)',
 };
 
 const PLATFORM_NAMES = { fb: 'Facebook', ig: 'Instagram' };
@@ -51,7 +51,9 @@ export function channelSlices(leads) {
 }
 
 export function paidSlices(leads) {
-  const counts = count(leads, (lead) => (lead.isOrganic === true ? 'Organic' : lead.isOrganic === false ? 'Paid (ads)' : 'Not tracked'));
+  // Google Ads leads carry no organic flag, but they are ads: only an explicit organic flag overrides that
+  const isPaid = (lead) => lead.isOrganic === false || (lead.isOrganic == null && /google/i.test(lead.source ?? ''));
+  const counts = count(leads, (lead) => (lead.isOrganic === true ? 'Organic' : isPaid(lead) ? 'Paid (ads)' : 'Not tracked'));
   return [
     { label: 'Paid (ads)', value: counts.get('Paid (ads)') ?? 0, color: COLORS.paid },
     { label: 'Organic', value: counts.get('Organic') ?? 0, color: COLORS.organic },

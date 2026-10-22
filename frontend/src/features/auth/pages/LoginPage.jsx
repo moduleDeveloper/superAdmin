@@ -6,7 +6,7 @@ import LoginHeader from '../components/LoginHeader';
 
 function LoginPage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#fbf6f3] font-sans text-[#14213d]">
+    <div className="relative min-h-screen overflow-hidden bg-(--c-page) font-sans text-(--c-text)">
       <BackgroundBubbles />
       <HeroBubble />
       <LoginHeader />

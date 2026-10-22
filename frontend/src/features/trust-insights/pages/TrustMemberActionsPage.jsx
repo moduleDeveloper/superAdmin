@@ -40,11 +40,11 @@ function TrustMemberActionsPage() {
   const activeDays = summary?.activeDays ?? 0;
 
   const stats = [
-    { marker: '#7a4a8c', label: 'Total Actions', value: summary?.totalActivities.toLocaleString('en-IN'), hint: 'By members, in selected range' },
-    { marker: '#1f8a3b', label: 'Active Days', value: summary?.activeDays.toLocaleString('en-IN'), hint: 'Days with activity' },
-    { marker: '#e8912f', label: 'Unique Pages Visited', value: summary?.uniquePages.toLocaleString('en-IN'), hint: 'Distinct pages' },
+    { marker: 'var(--c-c2)', label: 'Total Actions', value: summary?.totalActivities.toLocaleString('en-IN'), hint: 'By members, in selected range' },
+    { marker: 'var(--c-good)', label: 'Active Days', value: summary?.activeDays.toLocaleString('en-IN'), hint: 'Days with activity' },
+    { marker: 'var(--c-c3)', label: 'Unique Pages Visited', value: summary?.uniquePages.toLocaleString('en-IN'), hint: 'Distinct pages' },
     {
-      marker: '#2a8fa3',
+      marker: 'var(--c-c4)',
       label: 'Avg Actions per Day',
       value: summary?.avgPerDay.toFixed(1),
       hint: `Over ${activeDays} active day${activeDays === 1 ? '' : 's'}`,
@@ -60,7 +60,7 @@ function TrustMemberActionsPage() {
     <div className="mx-auto max-w-7xl">
       <BackLink to="/organization-insights" label="Back to Trust Insights" />
       <h1 className="mt-3 text-lg font-bold tracking-tight lg:text-3xl">App Actions{data ? ` - ${data.trust.name}` : ''}</h1>
-      <p className="mt-1 text-[#5b627a]">Page visits and usage by the members of this trust.</p>
+      <p className="mt-1 text-(--c-text-3)">Page visits and usage by the members of this trust.</p>
 
       {error && (
         <p className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
