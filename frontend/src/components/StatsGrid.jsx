@@ -11,26 +11,26 @@ const DIVIDERS_OF_THREE = ['', 'border-t @2xl:border-t-0 @2xl:border-l', 'border
 
 function Stat({ marker, label, value, hint, percent, loading, divider }) {
   return (
-    <div className={`min-w-0 border-[#e3d6cb] px-4 py-5 @md:px-6 ${divider}`}>
-      <p className="flex min-h-8 items-start gap-2 text-xs font-medium uppercase leading-4 tracking-[0.08em] text-[#6b7188] @md:min-h-0">
+    <div className={`min-w-0 border-(--c-border) px-4 py-5 @md:px-6 ${divider}`}>
+      <p className="flex min-h-8 items-start gap-2 text-xs font-medium uppercase leading-4 tracking-[0.08em] text-(--c-muted) @md:min-h-0">
         <span className="mt-[4px] h-2 w-2 shrink-0 rounded-[2px]" style={{ background: marker }} aria-hidden="true" />
         <span>{label}</span>
       </p>
 
       {loading ? (
-        <div className="mt-3 h-8 w-20 animate-pulse rounded bg-[#eadfd6]" />
+        <div className="mt-3 h-8 w-20 animate-pulse rounded bg-(--c-track)" />
       ) : (
-        <p className="mt-2 flex items-baseline gap-2.5 text-2xl font-semibold leading-9 tracking-tight tabular-nums text-[#14213d] @md:text-[1.75rem]">
+        <p className="mt-2 flex items-baseline gap-2.5 text-2xl font-semibold leading-9 tracking-tight tabular-nums text-(--c-text) @md:text-[1.75rem]">
           <span className="truncate">{value}</span>
           {percent && (
-            <span className="shrink-0 rounded-full bg-[#fde6d6] px-3 py-0.5 text-base font-bold leading-7 tracking-normal text-[#b04a4f] @md:text-lg">
+            <span className="shrink-0 rounded-full bg-(--c-accent-soft) px-3 py-0.5 text-base font-bold leading-7 tracking-normal text-(--c-link) @md:text-lg">
               {percent}
             </span>
           )}
         </p>
       )}
 
-      <p className="mt-1 truncate text-[0.8rem] text-[#7b8196]" title={loading ? undefined : hint}>
+      <p className="mt-1 truncate text-[0.8rem] text-(--c-muted)" title={loading ? undefined : hint}>
         {loading ? ' ' : hint}
       </p>
     </div>
@@ -46,7 +46,7 @@ function StatsGrid({ stats, loading }) {
 
   return (
     <div className="@container flex items-center">
-      <div className={`grid w-full ${three ? 'grid-cols-1 @2xl:grid-cols-3' : 'grid-cols-2 @2xl:grid-cols-4'}`}>
+      <div className={`stagger grid w-full ${three ? 'grid-cols-1 @2xl:grid-cols-3' : 'grid-cols-2 @2xl:grid-cols-4'}`}>
         {stats.map((stat, i) => (
           <Stat key={stat.label} {...stat} loading={loading} divider={(three ? DIVIDERS_OF_THREE : DIVIDERS)[i]} />
         ))}

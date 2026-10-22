@@ -27,7 +27,7 @@ function ModulesDonut({ modules, total, loading }) {
       type="button"
       onClick={() => setShowDetails((open) => !open)}
       aria-expanded={showDetails}
-      className="cursor-pointer text-xs font-medium text-[#b04a4f] hover:underline"
+      className="cursor-pointer text-xs font-medium text-(--c-link) hover:underline"
     >
       {showDetails ? 'Hide details ‹' : 'View details ›'}
     </button>
@@ -42,7 +42,7 @@ function ModulesDonut({ modules, total, loading }) {
           <div className="flex flex-col items-center gap-6 sm:flex-row">
             <div className="relative shrink-0" style={{ width: SIZE, height: SIZE }}>
               <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="-rotate-90" role="img" aria-label="Activity by module">
-                <circle cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} fill="none" stroke="#f3f0ed" strokeWidth={STROKE} />
+                <circle cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} fill="none" stroke="var(--c-track)" strokeWidth={STROKE} />
                 {segments.map((item) => (
                   <circle
                     key={item.module}
@@ -65,7 +65,7 @@ function ModulesDonut({ modules, total, loading }) {
               </svg>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-2xl font-bold leading-none tabular-nums">{number(total)}</span>
-                <span className="mt-1 text-[0.7rem] italic text-[#6b7188]">Activities</span>
+                <span className="mt-1 text-[0.7rem] italic text-(--c-muted)">Activities</span>
               </div>
             </div>
 
@@ -78,7 +78,7 @@ function ModulesDonut({ modules, total, loading }) {
                   onPointerLeave={() => setFocus(null)}
                 >
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: item.color }} />
-                  <span className="min-w-0 flex-1 truncate text-[#3a3f55]" title={item.module}>
+                  <span className="min-w-0 flex-1 truncate text-(--c-text-2)" title={item.module}>
                     {item.module}
                   </span>
                   <span className="font-semibold tabular-nums">{item.percent}%</span>
@@ -90,7 +90,7 @@ function ModulesDonut({ modules, total, loading }) {
           {showDetails && (
             <div className="mt-5 overflow-hidden rounded-xl border border-gray-200">
               <table className="w-full text-sm">
-                <thead className="bg-[#fbf6f3] text-left text-xs font-semibold uppercase tracking-wide text-[#6b7188]">
+                <thead className="bg-(--c-page) text-left text-xs font-semibold uppercase tracking-wide text-(--c-muted)">
                   <tr>
                     <th className="px-4 py-2.5">Module</th>
                     <th className="px-4 py-2.5 text-right">Activities</th>
@@ -111,7 +111,7 @@ function ModulesDonut({ modules, total, loading }) {
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="border-t border-gray-200 bg-[#fbf6f3]/60 font-semibold">
+                <tfoot className="border-t border-gray-200 bg-(--c-page)/60 font-semibold">
                   <tr>
                     <td className="px-4 py-2.5">Total</td>
                     <td className="px-4 py-2.5 text-right tabular-nums">{number(total)}</td>

@@ -30,7 +30,7 @@ function DonutChart({ title, slices, loading, noun = 'lead', emptyText = 'No dat
       {loading && total === 0 ? (
         <div className="mt-3 h-[150px] animate-pulse rounded-xl bg-gray-50" />
       ) : total === 0 ? (
-        <p className="mt-3 flex h-[150px] items-center justify-center text-sm text-[#7b8196]">{emptyText}</p>
+        <p className="mt-3 flex h-[150px] items-center justify-center text-sm text-(--c-muted)">{emptyText}</p>
       ) : (
         <div className="mt-3 flex flex-wrap items-center justify-center gap-x-6 gap-y-4">
           <div className="relative h-[150px] w-[150px] shrink-0">
@@ -40,7 +40,7 @@ function DonutChart({ title, slices, loading, noun = 'lead', emptyText = 'No dat
               role="img"
               aria-label={`${title}: ${total} ${total === 1 ? noun : `${noun}s`}`}
             >
-              <circle cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} fill="none" stroke="#f3ece6" strokeWidth={STROKE} />
+              <circle cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} fill="none" stroke="var(--c-track)" strokeWidth={STROKE} />
               {arcs.map((arc, i) => (
                 <circle
                   key={arc.label}
@@ -61,7 +61,7 @@ function DonutChart({ title, slices, loading, noun = 'lead', emptyText = 'No dat
             </svg>
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
               <span className="text-2xl font-bold leading-none tabular-nums">{(hovered?.value ?? total).toLocaleString('en-IN')}</span>
-              <span className="mt-1 max-w-[80px] truncate text-[0.7rem] text-[#7b8196]">
+              <span className="mt-1 max-w-[80px] truncate text-[0.7rem] text-(--c-muted)">
                 {hovered ? `${Math.round((hovered.value / total) * 100)}% · ${hovered.label}` : 'Total'}
               </span>
             </div>
@@ -76,9 +76,9 @@ function DonutChart({ title, slices, loading, noun = 'lead', emptyText = 'No dat
                 onMouseLeave={() => setActive(null)}
               >
                 <span className="h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: slice.color }} />
-                <span className="min-w-0 flex-1 truncate text-[#3a3f55]">{slice.label}</span>
+                <span className="min-w-0 flex-1 truncate text-(--c-text-2)">{slice.label}</span>
                 <span className="font-semibold tabular-nums">{slice.value.toLocaleString('en-IN')}</span>
-                <span className="w-9 text-right text-xs tabular-nums text-[#7b8196]">{Math.round((slice.value / total) * 100)}%</span>
+                <span className="w-9 text-right text-xs tabular-nums text-(--c-muted)">{Math.round((slice.value / total) * 100)}%</span>
               </li>
             ))}
           </ul>

@@ -80,16 +80,16 @@ function MemberInsightsPage() {
   const [lastDate, lastTime] = summary?.lastJoined ? formatDateTime(summary.lastJoined.createdAt).split(', ') : [];
 
   const stats = [
-    { marker: '#7a4a8c', label: 'Total Members', value: number(summary?.totalMembers), hint: 'Across all trusts' },
-    { marker: '#1f8a3b', label: 'Apps Created', value: number(growth.data?.appsCreated), hint: growth.data ? `${number(growth.data.totalApps)} apps in total` : undefined },
+    { marker: 'var(--c-c2)', label: 'Total Members', value: number(summary?.totalMembers), hint: 'Across all trusts' },
+    { marker: 'var(--c-good)', label: 'Apps Created', value: number(growth.data?.appsCreated), hint: growth.data ? `${number(growth.data.totalApps)} apps in total` : undefined },
     {
-      marker: '#e8912f',
+      marker: 'var(--c-c3)',
       label: 'Joined in Period',
       value: number(growth.data?.total),
       hint: growth.data ? formatDateRange(growth.data.period.from, growth.data.period.to) : undefined,
     },
     {
-      marker: '#2a8fa3',
+      marker: 'var(--c-c4)',
       label: 'Last Member Joined',
       value: lastDate ?? '—',
       hint: summary?.lastJoined ? `${lastTime} · ${summary.lastJoined.trustName ?? 'Unknown trust'}` : undefined,
@@ -106,7 +106,7 @@ function MemberInsightsPage() {
   // A second group under the overview: what the period looked like for the apps themselves.
   const appStats = [
     {
-      marker: '#b04a4f',
+      marker: 'var(--c-c1)',
       label: 'Members Who Created Apps',
       value: number(growth.data?.appCreators),
       // of the members who joined in the period, the share who created an app (creators who joined earlier are not in that base)
@@ -114,7 +114,7 @@ function MemberInsightsPage() {
       hint: growth.data ? `of ${number(growth.data.total)} members who joined` : undefined,
     },
     {
-      marker: '#5b2650',
+      marker: 'var(--c-c2)',
       label: 'Apps With Logins',
       value: number(growth.data?.appsWithLogins),
       // apps with a login relative to the members who created apps (can pass 100%: it is not a share of one group)
@@ -122,13 +122,13 @@ function MemberInsightsPage() {
       hint: growth.data ? `for ${number(growth.data.appCreators)} members who created apps` : undefined,
     },
     {
-      marker: '#e8793f',
+      marker: 'var(--c-accent)',
       label: 'Avg User Activity per App',
       value: growth.data ? (growth.data.avgActivityPerApp ?? '—') : undefined,
       hint: growth.data?.avgActivityPerApp != null ? `${number(growth.data.totalActivity)} user activities ÷ ${number(growth.data.appsWithActivity)} apps` : growth.data ? 'No user activity in the period' : undefined,
     },
     {
-      marker: '#b04a4f',
+      marker: 'var(--c-c1)',
       label: 'Avg App Activity per App',
       value: growth.data ? (growth.data.avgAppActivityPerApp ?? '—') : undefined,
       hint: growth.data?.avgAppActivityPerApp != null ? `${number(growth.data.totalAppActivity)} app activities ÷ ${number(growth.data.appsWithAppActivity)} apps` : growth.data ? 'No app activity in the period' : undefined,
@@ -139,7 +139,7 @@ function MemberInsightsPage() {
   const leadData = leads.data;
   const leadStats = [
     {
-      marker: '#2a8fa3',
+      marker: 'var(--c-c4)',
       label: 'Leads Received',
       value: number(leadData?.received),
       hint: leadData
@@ -149,7 +149,7 @@ function MemberInsightsPage() {
         : undefined,
     },
     {
-      marker: '#1f8a3b',
+      marker: 'var(--c-good)',
       label: 'Became Members',
       value: number(leadData?.converted),
       // matched by mobile number: a member with the same number who joined after the lead came in
@@ -157,7 +157,7 @@ function MemberInsightsPage() {
       hint: leadData ? `of ${number(leadData.withMobile)} leads with a mobile number` : undefined,
     },
     {
-      marker: '#e8793f',
+      marker: 'var(--c-accent)',
       label: 'From Paid Ads',
       value: number(leadData?.paid),
       percent: leadData && share(leadData.paid, leadData.received),
@@ -193,12 +193,12 @@ function MemberInsightsPage() {
         stats={<StatsGrid stats={stats} loading={!ready || !growth.data} />}
         extra={
           <div className="space-y-4">
-            <div className="rounded-xl border border-[#ebe0d7] bg-white/60">
-              <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-[0.08em] text-[#6b7188]">Apps in this period</p>
+            <div className="rounded-xl border border-(--c-border) bg-white/60">
+              <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-[0.08em] text-(--c-muted)">Apps in this period</p>
               <StatsGrid stats={appStats} loading={!growth.data} />
             </div>
-            <div className="rounded-xl border border-[#ebe0d7] bg-white/60">
-              <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-[0.08em] text-[#6b7188]">Leads in this period</p>
+            <div className="rounded-xl border border-(--c-border) bg-white/60">
+              <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-[0.08em] text-(--c-muted)">Leads in this period</p>
               <StatsGrid stats={leadStats} loading={!leads.data} />
             </div>
           </div>
@@ -223,7 +223,7 @@ function MemberInsightsPage() {
           <div className="flex items-center gap-2.5">
             <h2 className="text-base font-semibold">Members Joined in Selected Period</h2>
             {data && (
-              <span className="rounded-full bg-[#fde6d6] px-2.5 py-0.5 text-xs font-semibold text-[#b04a4f]">
+              <span className="rounded-full bg-(--c-accent-soft) px-2.5 py-0.5 text-xs font-semibold text-(--c-link)">
                 {filtered ? `${number(data.total)} found` : number(data.total)}
               </span>
             )}
@@ -245,8 +245,8 @@ function MemberInsightsPage() {
           />
 
           {hiddenSort && (
-            <p className="text-xs text-[#6b7188]">
-              Sorted by <span className="font-medium text-[#3a3f55]">{hiddenSort}</span>, which is hidden. Show more columns to see it.
+            <p className="text-xs text-(--c-muted)">
+              Sorted by <span className="font-medium text-(--c-text-2)">{hiddenSort}</span>, which is hidden. Show more columns to see it.
             </p>
           )}
         </div>

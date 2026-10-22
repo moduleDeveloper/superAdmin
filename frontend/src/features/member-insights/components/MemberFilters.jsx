@@ -1,7 +1,7 @@
 import SearchInput from '../../../components/SearchInput';
 
 const select =
-  'h-10 w-full cursor-pointer rounded-xl border border-gray-300 bg-white px-3 text-sm outline-none focus:border-[#e8793f] focus:ring-2 focus:ring-[#e8793f]/20';
+  'h-10 w-full cursor-pointer rounded-xl border border-gray-300 bg-white px-3 text-sm outline-none focus:border-(--c-accent) focus:ring-2 focus:ring-(--c-accent)/20';
 
 function MemberFilters({ search, onSearchChange, trust, onTrustChange, trusts, appDownload, onAppDownloadChange, onReset, canReset, showExtra, onToggleExtra, extraCount }) {
   return (
@@ -43,7 +43,7 @@ function MemberFilters({ search, onSearchChange, trust, onTrustChange, trusts, a
         type="button"
         onClick={onReset}
         disabled={!canReset}
-        className="h-10 cursor-pointer rounded-xl border border-gray-300 px-4 text-sm font-medium text-[#3a3f55] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+        className="h-10 cursor-pointer rounded-xl border border-gray-300 px-4 text-sm font-medium text-(--c-text-2) hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
       >
         Reset
       </button>
@@ -53,7 +53,7 @@ function MemberFilters({ search, onSearchChange, trust, onTrustChange, trusts, a
         onClick={onToggleExtra}
         aria-pressed={showExtra}
         title={showExtra ? 'Show only the main columns' : 'Show the less important columns too'}
-        className="h-10 cursor-pointer whitespace-nowrap rounded-xl border border-gray-300 px-4 text-sm font-medium text-[#3a3f55] hover:bg-gray-50"
+        className="h-10 cursor-pointer whitespace-nowrap rounded-xl border border-gray-300 px-4 text-sm font-medium text-(--c-text-2) hover:bg-gray-50"
       >
         {showExtra ? 'Hide extra columns' : `Show more columns (${extraCount})`}
       </button>

@@ -6,6 +6,13 @@
     <link rel="apple-touch-icon" href="/setu-favicon.jpg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>superadmin</title>
+    <script>
+      try {
+        document.documentElement.dataset.theme = localStorage.getItem('theme') === 'dark' ? 'dark' : 'light';
+      } catch (e) {
+        document.documentElement.dataset.theme = 'light';
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

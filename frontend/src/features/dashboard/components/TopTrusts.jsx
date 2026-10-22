@@ -12,7 +12,7 @@ function TopTrusts({ trusts, filter, loading }) {
     <ChartCard
       title="Most Active Apps"
       action={
-        <Link to="/organization-insights" className="text-xs font-medium text-[#b04a4f] hover:underline">
+        <Link to="/organization-insights" className="text-xs font-medium text-(--c-link) hover:underline">
           View all ›
         </Link>
       }
@@ -27,12 +27,12 @@ function TopTrusts({ trusts, filter, loading }) {
                 to={`/trust-insights/${trust.id}${query}`}
                 state={{ backLabel: 'Dashboard', section: '/' }}
                 title="View this app's activity"
-                className="w-36 shrink-0 truncate text-[#3a3f55] hover:text-[#b04a4f] hover:underline"
+                className="w-36 shrink-0 truncate text-(--c-text-2) hover:text-(--c-link) hover:underline"
               >
                 {trust.name}
               </Link>
               <span className="h-2.5 flex-1 rounded-full bg-gray-100">
-                <span className="block h-full rounded-full bg-[#e8793f]" style={{ width: `${(trust.count / max) * 100}%` }} />
+                <span className="block h-full rounded-full bg-(--c-accent)" style={{ width: `${(trust.count / max) * 100}%` }} />
               </span>
               <span className="w-10 shrink-0 text-right font-semibold tabular-nums">{trust.count.toLocaleString('en-IN')}</span>
             </li>

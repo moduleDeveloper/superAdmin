@@ -58,3 +58,58 @@ export const SidebarToggleIcon = () => (
     <path d="M9 4v16" />
   </svg>
 );
+
+/** Target: lead sources. */
+export const TargetIcon = () => (
+  <svg {...base}>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="5" />
+    <circle cx="12" cy="12" r="1.2" />
+  </svg>
+);
+
+/** Rising line: the client journey. */
+export const TrendIcon = () => (
+  <svg {...base}>
+    <path d="M3 17l6-6 4 4 8-8" />
+    <path d="M15 7h6v6" />
+  </svg>
+);
+
+export const CampaignIcon = () => (
+  <svg {...base}>
+    <path d="M5 21V4M5 4h11l-2 4 2 4H5" />
+  </svg>
+);
+
+export const AppsIcon = () => (
+  <svg {...base}>
+    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    <rect x="14" y="14" width="7" height="7" rx="1.5" />
+  </svg>
+);
+
+export const ChartIcon = () => (
+  <svg {...base}>
+    <path d="M3 3v18h18" />
+    <path d="M7 15l4-5 3 3 5-7" />
+  </svg>
+);
+
+export const PieIcon = () => (
+  <svg {...base}>
+    <path d="M12 3a9 9 0 1 0 9 9h-9Z" />
+    <path d="M15 3.5A9 9 0 0 1 20.5 9H15Z" />
+  </svg>
+);
+
+export const SourcesIcon = TargetIcon;
+export const JourneyIcon = TrendIcon;
+
+export const ChevronDownIcon = () => (
+  <svg {...base} className="h-4 w-4">
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+);

@@ -52,7 +52,7 @@ function TrustTable({ trusts, loading, filter, sort, onSort, searching = false, 
 
           {!loading && trusts.length === 0 && (
             <tr>
-              <td colSpan={columns.length} className="px-4 py-12 text-center text-[#5b627a]">
+              <td colSpan={columns.length} className="px-4 py-12 text-center text-(--c-text-3)">
                 {searching ? 'No trusts match your search.' : 'No trusts were created in this period.'}
               </td>
             </tr>

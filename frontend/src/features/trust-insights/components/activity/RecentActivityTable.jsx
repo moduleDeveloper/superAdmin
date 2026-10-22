@@ -5,10 +5,10 @@ import { formatTimestamp } from '../../utils/chart';
 
 const PAGE_SIZE = 10;
 
-const th = 'px-4 py-3 text-left text-sm font-semibold text-[#5b627a]';
+const th = 'px-4 py-3 text-left text-sm font-semibold text-(--c-text-3)';
 
 const pagerButton =
-  'cursor-pointer rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-[#3a3f55] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40';
+  'cursor-pointer rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-(--c-text-2) hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40';
 
 /**
  * Latest activity. A table on every screen size: when it does not fit it scrolls sideways (drag or swipe) with
@@ -27,7 +27,7 @@ function RecentActivityTable({ rows, loading, showTrust = false, title, userLabe
       <h3 className="text-sm font-semibold">{title ?? (showTrust ? 'Recent Member Activity' : 'Recent User Panel Activity')}</h3>
 
       {rows.length === 0 ? (
-        <div className="mt-4 rounded-xl border border-gray-200 px-4 py-12 text-center text-sm text-[#5b627a]">
+        <div className="mt-4 rounded-xl border border-gray-200 px-4 py-12 text-center text-sm text-(--c-text-3)">
           {loading ? (
             <div className="space-y-3">
               {Array.from({ length: 4 }, (_, i) => (
@@ -42,7 +42,7 @@ function RecentActivityTable({ rows, loading, showTrust = false, title, userLabe
         <>
           <ScrollTable className="mt-4">
             <table className="w-full min-w-[620px] text-sm">
-              <thead className="bg-[#fbf6f3]">
+              <thead className="bg-(--c-page)">
                 <tr>
                   <th className={th}>Timestamp</th>
                   <th className={th}>{showTrust ? 'Trust' : userLabel}</th>
@@ -54,11 +54,11 @@ function RecentActivityTable({ rows, loading, showTrust = false, title, userLabe
               <tbody className="divide-y divide-gray-200">
                 {visible.map((row) => (
                   <tr key={row.id}>
-                    <td className="whitespace-nowrap px-4 py-3 tabular-nums text-[#3a3f55]">{formatTimestamp(row.createdAt)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 tabular-nums text-(--c-text-2)">{formatTimestamp(row.createdAt)}</td>
                     <td className="px-4 py-3 font-medium">{showTrust ? row.trustName : row.user}</td>
-                    <td className="px-4 py-3 text-[#3a3f55]">{row.pageName}</td>
-                    <td className="break-all px-4 py-3 font-mono text-xs text-[#3a3f55]">{row.route}</td>
-                    <td className="px-4 py-3 text-[#3a3f55]">{row.module}</td>
+                    <td className="px-4 py-3 text-(--c-text-2)">{row.pageName}</td>
+                    <td className="break-all px-4 py-3 font-mono text-xs text-(--c-text-2)">{row.route}</td>
+                    <td className="px-4 py-3 text-(--c-text-2)">{row.module}</td>
                   </tr>
                 ))}
               </tbody>
@@ -68,7 +68,7 @@ function RecentActivityTable({ rows, loading, showTrust = false, title, userLabe
       )}
 
       {rows.length > PAGE_SIZE && (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[#5b627a]">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-(--c-text-3)">
           <span className="tabular-nums">
             Showing {start + 1}–{Math.min(start + PAGE_SIZE, rows.length)} of {rows.length} latest
           </span>

@@ -2,7 +2,7 @@ import { formatDateRange } from '../../../../utils/formatDate';
 import PeriodFilter from '../../../../components/PeriodFilter';
 
 const select =
-  'mt-1.5 h-10 w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-[#e8793f] focus:ring-2 focus:ring-[#e8793f]/20';
+  'mt-1.5 h-10 w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-(--c-accent) focus:ring-2 focus:ring-(--c-accent)/20';
 
 /** `trusts` ([{ id, name, isActive }]) swaps the User select for a Trust select (used on a member's activity page). */
 function ActivityFilters({ filter, options, period, onChange, onReset, canReset, trusts, userLabel = 'User' }) {
@@ -46,7 +46,7 @@ function ActivityFilters({ filter, options, period, onChange, onReset, canReset,
           <div className="mt-1.5">
             <PeriodFilter filter={filter} onChange={onChange} />
           </div>
-          <p className="mt-1.5 text-xs text-[#6b7188]">{period ? formatDateRange(period.from, period.to) : ''}</p>
+          <p className="mt-1.5 text-xs text-(--c-muted)">{period ? formatDateRange(period.from, period.to) : ''}</p>
         </div>
 
         <label className="block text-sm font-semibold">
@@ -78,7 +78,7 @@ function ActivityFilters({ filter, options, period, onChange, onReset, canReset,
           type="button"
           onClick={onReset}
           disabled={!canReset}
-          className="h-10 cursor-pointer rounded-lg border border-gray-300 px-4 text-sm font-medium text-[#3a3f55] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 sm:col-span-2 sm:justify-self-end xl:col-span-1 xl:mt-[1.4rem] xl:justify-self-auto"
+          className="h-10 cursor-pointer rounded-lg border border-gray-300 px-4 text-sm font-medium text-(--c-text-2) hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 sm:col-span-2 sm:justify-self-end xl:col-span-1 xl:mt-[1.4rem] xl:justify-self-auto"
         >
           Reset
         </button>

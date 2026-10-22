@@ -11,7 +11,7 @@ import { formatDateTime } from '../../../utils/formatDate';
 import { useMemberTrusts } from '../hooks/useMemberTrusts';
 import { FIRST_DIRECTION, formatJoinedDate, searchMemberTrusts, sortMemberTrusts } from '../utils/memberTrusts';
 
-const Empty = () => <span className="text-[#9aa0b4]">—</span>;
+const Empty = () => <span className="text-(--c-faint)">—</span>;
 
 /** One bar holding all the counts, divided into equal parts. */
 function SummaryBar({ summary }) {
@@ -22,10 +22,10 @@ function SummaryBar({ summary }) {
   ];
 
   return (
-    <div className="mt-6 grid max-w-md grid-cols-3 divide-x divide-gray-200 rounded-xl border border-gray-200 bg-[#fbf6f3]">
+    <div className="mt-6 grid max-w-md grid-cols-3 divide-x divide-gray-200 rounded-xl border border-gray-200 bg-(--c-page)">
       {items.map(([label, value]) => (
         <div key={label} className="px-4 py-3">
-          <p className="text-xs font-medium text-[#5b627a]">{label}</p>
+          <p className="text-xs font-medium text-(--c-text-3)">{label}</p>
           <p className="mt-1 text-2xl font-bold tabular-nums">{value}</p>
         </div>
       ))}
@@ -57,7 +57,7 @@ function MemberTrustsPage() {
       <BackLink to="/member-insights" label="Back to Member Insights" />
       <h1 className="mt-3 text-3xl font-bold tracking-tight">Trusts of {member ? member.name ?? 'Unnamed member' : 'member'}</h1>
       {member && (
-        <p className="mt-1 text-[#5b627a]">
+        <p className="mt-1 text-(--c-text-3)">
           {[member.mobile, member.email, member.companyName].filter(Boolean).join(' · ') || 'Every trust this member is registered in.'}
         </p>
       )}
@@ -104,7 +104,7 @@ function MemberTrustsPage() {
 
                 {!loading && rows.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-[#5b627a]">
+                    <td colSpan={7} className="px-4 py-12 text-center text-(--c-text-3)">
                       {search ? 'No trusts match your search.' : 'This member is not registered in any trust.'}
                     </td>
                   </tr>
@@ -121,35 +121,35 @@ function MemberTrustsPage() {
                               to={`/member-insights/${memberId}/activity?trust=${trust.trustId}`}
                               state={{ backLabel: "Member's Trusts", section: location.state?.section }}
                               title="View this member's activity in this trust"
-                              className="font-semibold text-[#b04a4f] hover:underline">
+                              className="font-semibold text-(--c-link) hover:underline">
                               {trust.name}
                             </Link>
                           ) : (
                             <span className="font-semibold">{trust.name}</span>
                           )}
-                          <div className="mt-0.5 flex items-center gap-2 text-xs text-[#5b627a]">
+                          <div className="mt-0.5 flex items-center gap-2 text-xs text-(--c-text-3)">
                             {trust.appType && <span>{trust.appType}</span>}
                             {trust.isPrimary && (
-                              <span className="rounded-full bg-[#fde6d6] px-2 py-0.5 font-medium text-[#b04a4f]">Primary</span>
+                              <span className="rounded-full bg-(--c-accent-soft) px-2 py-0.5 font-medium text-(--c-link)">Primary</span>
                             )}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 capitalize text-[#3a3f55]">{trust.role ?? <Empty />}</td>
-                    <td className="px-4 py-3 tabular-nums text-[#3a3f55]">{trust.membershipNumber ?? <Empty />}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-[#3a3f55]">{formatJoinedDate(trust.joinedDate) ?? <Empty />}</td>
+                    <td className="px-4 py-3 capitalize text-(--c-text-2)">{trust.role ?? <Empty />}</td>
+                    <td className="px-4 py-3 tabular-nums text-(--c-text-2)">{trust.membershipNumber ?? <Empty />}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-(--c-text-2)">{formatJoinedDate(trust.joinedDate) ?? <Empty />}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${
-                          trust.isActive ? 'bg-[#dff3e5] text-[#1f6b34]' : 'bg-gray-100 text-[#5b627a]'
+                          trust.isActive ? 'bg-(--c-good-bg) text-(--c-good-text)' : 'bg-gray-100 text-(--c-text-3)'
                         }`}
                       >
                         {trust.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-[#3a3f55]">{trust.lastActivityAt ? formatDateTime(trust.lastActivityAt) : <Empty />}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-[#3a3f55]">{formatDateTime(trust.registeredAt)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-(--c-text-2)">{trust.lastActivityAt ? formatDateTime(trust.lastActivityAt) : <Empty />}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-(--c-text-2)">{formatDateTime(trust.registeredAt)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -5,7 +5,7 @@ function SourceSelect({ value, onChange, options, label }) {
       value={value}
       onChange={(event) => onChange(event.target.value)}
       aria-label={label}
-      className="h-9 max-w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-[#e8793f] focus:ring-2 focus:ring-[#e8793f]/20"
+      className="h-9 max-w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-(--c-accent) focus:ring-2 focus:ring-(--c-accent)/20"
     >
       {options.map((option) => (
         <option key={option.value} value={option.value}>

@@ -15,7 +15,7 @@ function Avatar({ name, logoUrl }) {
   }
 
   return (
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#fde6d6] text-sm font-semibold text-[#b04a4f]">
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-(--c-accent-soft) text-sm font-semibold text-(--c-link)">
       {(name || '?').trim().charAt(0).toUpperCase()}
     </span>
   );
