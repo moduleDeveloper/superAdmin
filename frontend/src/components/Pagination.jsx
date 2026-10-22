@@ -1,7 +1,7 @@
 const PAGE_SIZES = [10, 25, 50, 100];
 
 const button =
-  'flex h-8 min-w-8 cursor-pointer items-center justify-center rounded-lg border border-gray-200 px-2 text-xs font-medium text-[#3a3f55] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40';
+  'flex h-8 min-w-8 cursor-pointer items-center justify-center rounded-lg border border-gray-200 px-2 text-xs font-medium text-(--c-text-2) hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40';
 
 const number = (n) => n.toLocaleString('en-IN');
 
@@ -12,7 +12,7 @@ function Pagination({ page, pageSize, total, loading, onPageChange, onPageSizeCh
   const last = Math.min(page * pageSize, total);
 
   return (
-    <div className="mt-3 flex shrink-0 flex-col gap-3 text-xs text-[#5b627a] sm:flex-row sm:items-center sm:justify-between">
+    <div className="mt-3 flex shrink-0 flex-col gap-3 text-xs text-(--c-text-3) sm:flex-row sm:items-center sm:justify-between">
       <span className="tabular-nums">
         Showing {number(first)}–{number(last)} of {number(total)}
       </span>
@@ -23,7 +23,7 @@ function Pagination({ page, pageSize, total, loading, onPageChange, onPageSizeCh
           <select
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className="h-8 cursor-pointer rounded-lg border border-gray-200 bg-white px-2 text-xs outline-none focus:border-[#e8793f]"
+            className="h-8 cursor-pointer rounded-lg border border-gray-200 bg-white px-2 text-xs outline-none focus:border-(--c-accent)"
           >
             {PAGE_SIZES.map((size) => (
               <option key={size} value={size}>

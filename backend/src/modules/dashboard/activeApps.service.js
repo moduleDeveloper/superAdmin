@@ -1,12 +1,12 @@
 import { supabase } from '../../config/supabase.js';
-import { leadChannel, sourceKeyOf, sourceLabelOf } from '../marketing/leadStats.service.js';
+import { leadChannel, organicMemberLead, sourceKeyOf, sourceLabelOf } from '../marketing/leadStats.service.js';
 
 const PAGE_SIZE = 1000;
 const TOP_APPS = 10;
 const DETAIL_BATCH = 5; // how many apps are looked up at once
 
 /** What the list can be limited to: every app, the apps from one ad source, or the apps that came without an ad lead. */
-export const APP_SCOPES = ['all', 'meta', 'google', 'website', 'other', 'direct'];
+export const APP_SCOPES = ['all', 'meta', 'whatsapp', 'google', 'website', 'organic', 'direct'];
 
 const unwrap = ({ data, count, error }) => {
     if (error) throw error;
@@ -18,7 +18,7 @@ const last10 = (value) => String(value ?? '').replace(/\D/g, '').slice(-10);
 /** Each person's earliest lead, by phone number (last 10 digits). */
 async function firstLeadByPhone() {
     const { data } = unwrap(
-        await supabase.from('leads').select('mobile, lead_received_at, source, platform, campaign_name, adset_name').limit(5000)
+        await supabase.from('leads').select('mobile, lead_received_at, source, platform, is_organic, campaign_name, adset_name').limit(5000)
     );
 
     const first = new Map();
@@ -27,6 +27,23 @@ async function firstLeadByPhone() {
         if (key.length === 10 && (!first.has(key) || lead.lead_received_at < first.get(key).lead_received_at)) first.set(key, lead);
     });
     return first;
+}
+
+/** Of these apps, the owners who are organic members, as members_id -> an organic "lead" (see organicMemberLead). */
+async function organicOwners(apps) {
+    const ids = [...new Set(apps.map((app) => app.superuser?.members_id).filter(Boolean))];
+    const found = new Map();
+    for (let i = 0; i < ids.length; i += 100) {
+        const { data } = unwrap(
+            await supabase
+                .from('Members')
+                .select('members_id, Name, Mobile, created_at, source, sub_source, campaign_name')
+                .ilike('source', 'organic')
+                .in('members_id', ids.slice(i, i + 100))
+        );
+        data.forEach((member) => found.set(member.members_id, organicMemberLead(member)));
+    }
+    return found;
 }
 
 /** Every app with activity in the period, busiest first: App actions (members') + User Panel (registered users'). */
@@ -100,15 +117,21 @@ async function appDetails(app, start, end) {
  * The busiest apps in the period (top 10), ranked by App actions + User Panel, each with where the owner came from
  * (a lead with the owner's mobile number that came in before the app was created) and a short journey.
  *
- * `scope` limits the list before it is cut to ten: 'all', one ad source ('meta' | 'google' | 'website' | 'other'), or
+ * `scope` limits the list before it is cut to ten: 'all', one ad source ('meta' | 'whatsapp' | 'google' | 'website' | 'organic'), or
  * 'direct' (owners with no matching lead). `scopeCounts` says how many apps with activity fall in each group.
  */
 export async function getMostActiveApps({ start, end }, scope = 'all') {
     const [ranked, leads] = await Promise.all([activityPerApp(start, end), firstLeadByPhone()]);
 
+    // Owners with no ad lead may still be organic members (Members.source = 'Organic')
+    const organic = await organicOwners(ranked.filter((app) => {
+        const lead = leads.get(last10(app.superuser?.mobile));
+        return !(lead && lead.lead_received_at <= app.created_at);
+    }));
+
     const apps = ranked.map((app) => {
         const lead = leads.get(last10(app.superuser?.mobile));
-        const fromAd = lead && lead.lead_received_at <= app.created_at ? lead : null;
+        const fromAd = (lead && lead.lead_received_at <= app.created_at ? lead : null) ?? organic.get(app.superuser?.members_id) ?? null;
         return { app, fromAd, group: fromAd ? sourceKeyOf(fromAd) : 'direct' };
     });
 

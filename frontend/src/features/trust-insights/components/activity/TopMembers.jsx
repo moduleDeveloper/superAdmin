@@ -20,12 +20,12 @@ function TopMembers({ members, trustId, filter, loading }) {
                 state={{ backLabel: 'App Actions', section: '/organization-insights' }}
                 to={`/member-insights/${member.id}/activity${query ? `${query}&` : '?'}trust=${trustId}`}
                 title="View this member's activity"
-                className="w-44 shrink-0 truncate text-[#3a3f55] hover:text-[#b04a4f] hover:underline"
+                className="w-44 shrink-0 truncate text-(--c-text-2) hover:text-(--c-link) hover:underline"
               >
                 {member.name}
               </Link>
               <span className="h-2.5 flex-1 rounded-full bg-gray-100">
-                <span className="block h-full rounded-full bg-[#b04a4f]" style={{ width: `${(member.count / max) * 100}%` }} />
+                <span className="block h-full rounded-full bg-(--c-link)" style={{ width: `${(member.count / max) * 100}%` }} />
               </span>
               <span className="w-9 shrink-0 text-right font-semibold tabular-nums">{member.count}</span>
             </li>

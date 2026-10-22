@@ -1,7 +1,7 @@
 function StatCard({ label, value, hint, accent, loading, compact = false }) {
   return (
     <div className={`rounded-2xl border border-gray-200 border-t-[3px] bg-white px-5 py-4 ${accent}`}>
-      <p className="text-sm text-[#5b627a]">{label}</p>
+      <p className="text-sm text-(--c-text-3)">{label}</p>
 
       {loading ? (
         <div className="mt-2 h-8 w-20 animate-pulse rounded bg-gray-100" />
@@ -11,7 +11,7 @@ function StatCard({ label, value, hint, accent, loading, compact = false }) {
         </p>
       )}
 
-      <p className="mt-1 min-h-4 truncate text-xs text-[#6b7188]">{loading ? '' : hint}</p>
+      <p className="mt-1 min-h-4 truncate text-xs text-(--c-muted)">{loading ? '' : hint}</p>
     </div>
   );
 }

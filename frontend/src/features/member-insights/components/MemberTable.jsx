@@ -54,7 +54,7 @@ function MemberTable({ members, loading, sort, onSort, filtered, pinned = false,
 
           {!loading && members.length === 0 && (
             <tr>
-              <td colSpan={columns.length} className="px-4 py-12 text-center text-[#5b627a]">
+              <td colSpan={columns.length} className="px-4 py-12 text-center text-(--c-text-3)">
                 {filtered ? 'No members match your filters.' : 'No members joined in this period.'}
               </td>
             </tr>

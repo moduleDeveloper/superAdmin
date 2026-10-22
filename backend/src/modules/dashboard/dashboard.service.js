@@ -1,7 +1,7 @@
 import { supabase } from '../../config/supabase.js';
 import { listDayKeys, localDayKey, localHour } from '../../utils/dateRange.js';
 import { getMostActiveApps } from './activeApps.service.js';
-import { leadSections, sourceQuality, traceLeadPeople } from '../marketing/leadStats.service.js';
+import { isOrganicMember, leadSections, organicMemberLead, sourceQuality, traceLeadPeople } from '../marketing/leadStats.service.js';
 
 const PAGE_SIZE = 1000;
 const PAGE_BATCH = 8; // how many pages are fetched at once
@@ -61,10 +61,10 @@ function buildSeries(timestamps, { firstDay, lastDay }) {
  */
 export async function getDashboard({ start, end, firstDay, lastDay, todayStart }) {
     const [members, trusts, activity, leads, totals, activeApps] = await Promise.all([
-        fetchPeriodRows('Members', 'created_at, members_id', 'members_id', start, end),
+        fetchPeriodRows('Members', 'created_at, members_id, Name, Mobile, source, sub_source, campaign_name', 'members_id', start, end),
         fetchPeriodRows('Trust', 'created_at, id', 'id', start, end),
         fetchPeriodRows('page_activity', 'created_at, id, trust_id, user_reg_id, members_id', 'id', start, end),
-        fetchPeriodRows('leads', 'created_at, id, lead_received_at, source, platform, mobile, campaign_name, adset_name', 'id', start, end),
+        fetchPeriodRows('leads', 'created_at, id, lead_received_at, source, platform, is_organic, mobile, campaign_name, adset_name', 'id', start, end),
         Promise.all([
             supabase.from('Members').select('members_id', head),
             supabase.from('Members').select('members_id', head).eq('app_download', true),
@@ -89,7 +89,10 @@ export async function getDashboard({ start, end, firstDay, lastDay, todayStart }
     const { data: topNames } = top.length ? unwrap(await supabase.from('Trust').select('id, name').in('id', top.map(([id]) => id))) : { data: [] };
     const names = new Map(topNames.map((t) => [t.id, t.name]));
 
-    const trace = await traceLeadPeople(periodLeads);
+    // The reports also count members who joined on their own (Members.source = 'Organic') as organic leads.
+    // The headline numbers and the leads graph keep counting the leads table only.
+    const reportLeads = [...periodLeads, ...members.filter(isOrganicMember).map(organicMemberLead)];
+    const trace = await traceLeadPeople(reportLeads);
     const range = { firstDay, lastDay };
     return {
         period: { from: firstDay, to: lastDay },
@@ -117,8 +120,8 @@ export async function getDashboard({ start, end, firstDay, lastDay, todayStart }
             leads: buildSeries(periodLeads.map((r) => r.lead_received_at), range),
         },
         topTrusts: top.map(([id, count]) => ({ id, name: names.get(id) ?? 'Unknown trust', count })),
-        ...leadSections(periodLeads, trace), // funnel, campaigns, leadChannels, leadConversion for all leads
-        sources: sourceQuality(periodLeads, trace),
+        ...leadSections(reportLeads, trace), // funnel, campaigns, leadChannels, leadConversion for all leads
+        sources: sourceQuality(reportLeads, trace),
         activeApps,
     };
 }

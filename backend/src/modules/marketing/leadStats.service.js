@@ -1,6 +1,7 @@
 import { supabase } from '../../config/supabase.js';
 
 const ID_CHUNK = 100;
+const LOOKUP_PARALLEL = 6; // member look-ups at once
 
 const unwrap = ({ data, count, error }) => {
     if (error) throw error;
@@ -37,12 +38,24 @@ async function matchLeadMembers(leads) {
     });
 
     const members = new Map();
-    for (const mobiles of chunk([...first.keys()].map(Number), ID_CHUNK)) {
-        const { data } = unwrap(await supabase.from('Members').select('Mobile, members_id, created_at').in('Mobile', mobiles));
-        data.forEach((member) => {
-            const key = last10(member.Mobile);
-            if (new Date(member.created_at).getTime() >= receivedAt(first.get(key))) members.set(key, member.members_id);
-        });
+    const toLookUp = [];
+    first.forEach((lead, key) => {
+        // organic members already carry their members_id: nothing to look up
+        if (lead.members_id) members.set(key, lead.members_id);
+        else toLookUp.push(Number(key));
+    });
+
+    const batches = chunk(toLookUp, ID_CHUNK);
+    for (let i = 0; i < batches.length; i += LOOKUP_PARALLEL) {
+        await Promise.all(
+            batches.slice(i, i + LOOKUP_PARALLEL).map(async (mobiles) => {
+                const { data } = unwrap(await supabase.from('Members').select('Mobile, members_id, created_at').in('Mobile', mobiles));
+                data.forEach((member) => {
+                    const key = last10(member.Mobile);
+                    if (new Date(member.created_at).getTime() >= receivedAt(first.get(key))) members.set(key, member.members_id);
+                });
+            })
+        );
     }
 
     return { withMobile: first.size, members, first };
@@ -54,7 +67,27 @@ export async function countConvertedLeads(leads) {
     return { withMobile, converted: members.size };
 }
 
-const LOGIN_BATCH = 10; // how many members are checked at once
+const LOGIN_PAGE = 1000;
+const LOGIN_PARALLEL = 6; // login pages fetched at once
+
+/** members_id of everyone with at least one login session (paged, several pages at once). */
+async function loggedInMemberIds() {
+    const { count } = unwrap(await supabase.from('member_session').select('id', { count: 'exact', head: true }).eq('action_type', 'login'));
+    const pages = Math.ceil((count ?? 0) / LOGIN_PAGE);
+    const ids = new Set();
+    for (let i = 0; i < pages; i += LOGIN_PARALLEL) {
+        await Promise.all(
+            Array.from({ length: Math.min(LOGIN_PARALLEL, pages - i) }, async (_, j) => {
+                const from = (i + j) * LOGIN_PAGE;
+                const { data } = unwrap(
+                    await supabase.from('member_session').select('id, members_id').eq('action_type', 'login').order('id').range(from, from + LOGIN_PAGE - 1)
+                );
+                data.forEach((row) => row.members_id && ids.add(row.members_id));
+            })
+        );
+    }
+    return ids;
+}
 
 /**
  * Follows every person who enquired through the funnel: became a member -> logged in to the app -> created an app ->
@@ -64,16 +97,9 @@ const LOGIN_BATCH = 10; // how many members are checked at once
 export async function traceLeadPeople(leads) {
     const { withMobile, members, first } = await matchLeadMembers(leads);
 
-    const loggedIn = new Set();
-    const memberIds = [...new Set(members.values())];
-    for (const batch of chunk(memberIds, LOGIN_BATCH)) {
-        const counts = await Promise.all(
-            batch.map(async (memberId) =>
-                unwrap(await supabase.from('member_session').select('id', { count: 'exact', head: true }).eq('action_type', 'login').eq('members_id', memberId)).count
-            )
-        );
-        batch.forEach((memberId, i) => counts[i] > 0 && loggedIn.add(memberId));
-    }
+    // Who has logged in at least once: read all login sessions in a few big pages (far fewer queries than asking per member)
+    const everLoggedIn = await loggedInMemberIds();
+    const loggedIn = new Set([...new Set(members.values())].filter((id) => everLoggedIn.has(id)));
 
     // member -> superuser -> the apps (Trust rows) that superuser owns
     const owner = new Map();
@@ -161,17 +187,32 @@ function describeGroup(label, leads, people) {
     return { label, leads: leads.length, members, ...stages };
 }
 
+/** Items grouped into a Map by `keyOf(item)`. */
+function groupBy(items, keyOf) {
+    const map = new Map();
+    items.forEach((item) => {
+        const key = keyOf(item);
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(item);
+    });
+    return map;
+}
+
 /** Rows for the leads grouped by `keyOf` (leads whose key is null are skipped), biggest first. */
 function groupRows(leads, people, keyOf, extra = () => ({})) {
     const groups = new Map();
     leads.forEach((lead) => {
         const key = keyOf(lead);
-        if (key !== null) groups.set(key, [...(groups.get(key) ?? []), lead]);
+        if (key !== null) {
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(lead);
+        }
     });
+    const peopleByKey = groupBy(people, (p) => keyOf(p.lead));
 
     return [...groups]
         .map(([key, rows]) => ({
-            ...describeGroup(key, rows, people.filter((p) => keyOf(p.lead) === key)),
+            ...describeGroup(key, rows, peopleByKey.get(key) ?? []),
             ...extra(rows, key),
         }))
         .sort((a, b) => b.leads - a.leads);
@@ -182,8 +223,9 @@ function groupRows(leads, people, keyOf, extra = () => ({})) {
  * create an app and use it. Each campaign also splits by platform (Facebook / Instagram / …) and by ad set.
  */
 export function campaignPerformance(leads, trace) {
+    const peopleByCampaign = groupBy(trace.people, (p) => campaignOf(p.lead));
     return groupRows(leads, trace.people, campaignOf, (rows, campaign) => {
-        const inCampaign = trace.people.filter((p) => campaignOf(p.lead) === campaign);
+        const inCampaign = peopleByCampaign.get(campaign) ?? [];
         return {
             channels: [...new Set(rows.map(leadChannel))],
             platforms: groupRows(rows, inCampaign, leadChannel),
@@ -192,24 +234,46 @@ export function campaignPerformance(leads, trace) {
     });
 }
 
-/** The ad source a lead came from, for the quality cards. */
+/** The lead sources shown on the dashboard. Every one is always returned, even with 0 leads. */
 const SOURCES = [
     { key: 'meta', label: 'Meta Ads' },
+    { key: 'whatsapp', label: 'WhatsApp' },
     { key: 'google', label: 'Google Ads' },
     { key: 'website', label: 'Website' },
-    { key: 'other', label: 'Other' },
+    { key: 'organic', label: 'Organic' },
 ];
 const sourceOf = (lead) => {
     const source = lead.source ?? '';
+    if (/whats\s*app|\bwa\b/i.test(source)) return 'whatsapp';
+    if (/organic/i.test(source)) return 'organic'; // members who joined on their own (Members.source = 'Organic')
     if (/website/i.test(source)) return 'website';
     if (/google/i.test(source)) return 'google';
-    return /meta/i.test(source) ? 'meta' : 'other';
+    if (/meta|facebook|instagram/i.test(source) || ['fb', 'ig'].includes(lead.platform)) return 'meta';
+    return 'organic'; // no recognisable ad source
 };
 
-/** Key of the ad source a lead came from: meta, google, website or other. */
+/**
+ * Organic people are not in `leads`: they are the members whose Members.source is 'Organic'. Each one is treated as a
+ * lead received when they joined, so they flow through the same funnel, campaign and source numbers.
+ */
+export const isOrganicMember = (member) => /organic/i.test(member.source ?? '');
+export const organicMemberLead = (member) => ({
+    id: `member-${member.members_id}`,
+    members_id: member.members_id,
+    name: member.Name ?? null,
+    mobile: member.Mobile,
+    lead_received_at: member.created_at,
+    source: 'Organic',
+    platform: null,
+    is_organic: true,
+    campaign_name: member.campaign_name ?? null,
+    adset_name: member.sub_source ?? null,
+});
+
+/** Key of the source a lead came from: meta, whatsapp, google, website or organic. */
 export const sourceKeyOf = (lead) => sourceOf(lead);
 
-/** Name of the ad source a lead came from (Meta Ads, Google Ads, Website, Other). */
+/** Name of the source a lead came from (Meta Ads, WhatsApp, Google Ads, Website, Organic). */
 export const sourceLabelOf = (lead) => SOURCES.find((source) => source.key === sourceOf(lead)).label;
 
 const RANK_MIN_LEADS = 10; // a source with fewer leads is shown but not ranked
@@ -256,7 +320,7 @@ export function sourceQuality(leads, trace) {
             ...stages,
             sections: leadSections(leads, trace, inGroup),
         };
-    }).filter((row) => row.leads > 0);
+    });
 
     const ranked = rows
         .filter((row) => row.leads >= RANK_MIN_LEADS)
@@ -289,8 +353,111 @@ export async function getLeadPeriodStats(start, end) {
         total: unwrap(total).count,
         received: leads.length,
         channels: [...channels].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count),
-        paid: leads.filter((lead) => lead.is_organic === false).length,
+        // Google Ads leads do not carry is_organic, but they are ads: only an explicit organic flag overrides that
+        paid: leads.filter((lead) => lead.is_organic === false || (lead.is_organic == null && /google/i.test(lead.source ?? ''))).length,
         organic: leads.filter((lead) => lead.is_organic === true).length,
         ...(await countConvertedLeads(leads)),
+    };
+}
+
+const LEAD_PAGE_SIZE = 1000;
+const LEAD_MAX_ROWS = 20000;
+
+/** How far a lead's person got: lead -> member -> logged in -> created an app -> app in use. */
+const stageOf = (person) => {
+    if (!person) return 'lead';
+    if (!person.loggedIn) return 'member';
+    if (person.apps.length === 0) return 'loggedIn';
+    return person.apps.some((app) => app.active) ? 'active' : 'app';
+};
+
+/**
+ * One page of the leads behind a campaign row (newest first, or oldest first with sort 'asc'), for the dashboard's lead list. The leads are narrowed by
+ * campaign (and optionally ad source, platform, ad set) and by a search on name / mobile number; only the leads on the
+ * requested page are followed through the funnel, so a campaign with thousands of leads stays cheap.
+ * `stage` ('loggedIn' | 'app') keeps only the people counted in that column of the campaign table and adds summary { people, apps }.
+ * Returns { total, summary, page, pageSize, leads: [{ id, name, mobile, channel, adSet, receivedAt, stage }] }.
+ */
+export async function getCampaignLeads({ start, end }, { campaign, source, platform, adSet, search, page, pageSize, sort, stage }) {
+    const all = [];
+    for (let from = 0; from < LEAD_MAX_ROWS; from += LEAD_PAGE_SIZE) {
+        const { data } = unwrap(
+            await supabase
+                .from('leads')
+                .select('id, name, lead_received_at, source, platform, is_organic, mobile, campaign_name, adset_name')
+                .gte('lead_received_at', start)
+                .lt('lead_received_at', end)
+                .order('lead_received_at', { ascending: false })
+                .order('id')
+                .range(from, from + LEAD_PAGE_SIZE - 1)
+        );
+        all.push(...data);
+        if (data.length < LEAD_PAGE_SIZE) break;
+    }
+
+    // Organic members (Members.source = 'Organic') count as organic leads, received when they joined.
+    if (!source || source === 'organic') {
+        for (let from = 0; from < LEAD_MAX_ROWS; from += LEAD_PAGE_SIZE) {
+            const { data } = unwrap(
+                await supabase
+                    .from('Members')
+                    .select('members_id, Name, Mobile, created_at, source, sub_source, campaign_name')
+                    .ilike('source', 'organic')
+                    .gte('created_at', start)
+                    .lt('created_at', end)
+                    .order('created_at', { ascending: false })
+                    .order('members_id')
+                    .range(from, from + LEAD_PAGE_SIZE - 1)
+            );
+            all.push(...data.map(organicMemberLead));
+            if (data.length < LEAD_PAGE_SIZE) break;
+        }
+        all.sort((a, b) => receivedAt(b) - receivedAt(a));
+    }
+
+    const needle = search?.trim().toLowerCase();
+    const digits = needle?.replace(/\D/g, '');
+    let matching = all.filter(
+        (lead) =>
+            campaignOf(lead) === campaign &&
+            (!source || sourceOf(lead) === source) &&
+            (!platform || leadChannel(lead) === platform) &&
+            (!adSet || adSetOf(lead) === adSet) &&
+            (!needle || (lead.name ?? '').toLowerCase().includes(needle) || (digits && String(lead.mobile ?? '').replace(/\D/g, '').includes(digits)))
+    );
+
+    // stage 'loggedIn' / 'app': only the people counted in that column of the campaign table (each one by their first lead)
+    let summary = null;
+    let traced = null;
+    if (stage === 'loggedIn' || stage === 'app') {
+        traced = await traceLeadPeople(matching);
+        const kept = traced.people.filter((person) => (stage === 'loggedIn' ? person.loggedIn : person.apps.length > 0));
+        const firstLeadIds = new Set(kept.map((person) => person.lead.id));
+        matching = matching.filter((lead) => firstLeadIds.has(lead.id));
+        summary = { people: kept.length, apps: kept.reduce((total, person) => total + person.apps.length, 0) };
+    }
+
+    if (sort === 'asc') matching.reverse(); // fetched newest first
+    const rows = matching.slice((page - 1) * pageSize, page * pageSize);
+    const trace = traced ?? (await traceLeadPeople(rows));
+    const personByPhone = new Map(trace.people.map((p) => [last10(p.lead.mobile), p]));
+
+    return {
+        total: matching.length,
+        summary, // { people, apps } when a stage is asked for
+        page,
+        pageSize,
+        leads: rows.map((lead) => ({
+            id: lead.id,
+            name: lead.name ?? null,
+            mobile: lead.mobile ?? null,
+            channel: leadChannel(lead),
+            adSet: adSetOf(lead),
+            receivedAt: lead.lead_received_at,
+            stage: stageOf(personByPhone.get(last10(lead.mobile))),
+            // who to open when the lead has built an app
+            memberId: personByPhone.get(last10(lead.mobile))?.memberId ?? null,
+            appIds: (personByPhone.get(last10(lead.mobile))?.apps ?? []).map((app) => app.id),
+        })),
     };
 }

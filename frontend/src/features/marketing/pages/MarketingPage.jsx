@@ -1,19 +1,16 @@
 import { useMemo } from 'react';
 
 import AreaChart from '../../../components/AreaChart';
-import BarList from '../../../components/BarList';
-import ColumnChart from '../../../components/ColumnChart';
-import DonutChart from '../../../components/DonutChart';
 import OverviewPanel from '../../../components/OverviewPanel';
 import PeriodFilter from '../../../components/PeriodFilter';
 import StatsGrid from '../../../components/StatsGrid';
 import { useSessionState } from '../../../hooks/useSessionState';
 import { formatDateRange, formatDateTime } from '../../../utils/formatDate';
 import { periodTitle } from '../../trust-insights/utils/periodTitle';
+import LeadBreakdown from '../components/LeadBreakdown';
 import { useMarketingOverview } from '../hooks/useMarketingOverview';
 import { buildLeadSeries, campaignBars, channelSlices, hourColumns, paidSlices } from '../utils/leadStats';
 
-const card = 'rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_1px_3px_rgba(20,33,61,0.06)]';
 const number = (value) => value?.toLocaleString('en-IN');
 
 function MarketingPage() {
@@ -35,16 +32,16 @@ function MarketingPage() {
   const paidCount = paid[0].value;
 
   const stats = [
-    { marker: '#7a4a8c', label: 'Total Leads', value: number(data?.totalLeads), hint: 'All leads received' },
-    { marker: '#1f8a3b', label: 'Leads Today', value: number(data?.leadsToday), hint: 'Since midnight' },
+    { marker: 'var(--c-c2)', label: 'Total Leads', value: number(data?.totalLeads), hint: 'All leads received' },
+    { marker: 'var(--c-good)', label: 'Leads Today', value: number(data?.leadsToday), hint: 'Since midnight' },
     {
-      marker: '#e8912f',
+      marker: 'var(--c-c3)',
       label: 'Selected Period',
       value: number(data?.period.count),
       hint: data && data.period.count > 0 ? `${Math.round((paidCount / data.period.count) * 100)}% from paid ads` : formatDateRange(data?.period.from, data?.period.to),
     },
     {
-      marker: '#2a8fa3',
+      marker: 'var(--c-c4)',
       label: 'Last Lead Received',
       value: lastDate ?? '—',
       hint: lastLead ? `${lastTime} · ${lastLead.source}` : undefined,
@@ -80,19 +77,8 @@ function MarketingPage() {
         }
       />
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-2">
-        <section className={card}>
-          <DonutChart title="Lead Source" slices={channels} loading={loading} />
-        </section>
-        <section className={card}>
-          <DonutChart title="Paid vs Organic" slices={paid} loading={loading} />
-        </section>
-        <section className={card}>
-          <BarList title="Top Campaigns" items={campaigns} loading={loading} />
-        </section>
-        <section className={card}>
-          <ColumnChart title="When Leads Arrive (Hour of Day)" columns={hours} loading={loading} />
-        </section>
+      <div className="mt-5">
+        <LeadBreakdown channels={channels} paid={paid} campaigns={campaigns} hours={hours} loading={loading} />
       </div>
     </div>
   );

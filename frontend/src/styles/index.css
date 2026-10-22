@@ -1,5 +1,138 @@
 @import "tailwindcss";
 
+/*
+ * Colours. Every colour in the app is one of these named values, so a theme is just a different set of values.
+ * Light = Warm Teal (the default). Dark = Deep Teal, switched on with data-theme="dark" on <html>
+ * (see hooks/useTheme.js; index.html sets it before the first paint so there is no flash).
+ */
+:root {
+  color-scheme: light;
+
+  /* surfaces */
+  --c-page: #f7f5f1;
+  --c-surface: #ffffff;
+  --c-band: #efeae2;
+  --c-subtle: #f4f0e9;
+  --c-track: #e8e2d8;
+  --c-border: #e6dfd3;
+  --c-border-strong: #d3cabb;
+
+  /* text */
+  --c-text: #1b2a2f;
+  --c-text-2: #354950;
+  --c-text-3: #4f636a;
+  --c-muted: #6c7d83;
+  --c-faint: #9aa8ac;
+  --c-on-accent: #ffffff;
+
+  /* accent and links */
+  --c-accent: #0f9488;
+  --c-link: #0b7a70;
+  --c-accent-soft: #dcf4f0;
+  --c-soft-2: #b9e8e1;
+  --c-grad-from: #22c3ae;
+  --c-grad-via: #0f9488;
+  --c-grad-to: #0b6f8a;
+
+  /* status */
+  --c-good: #12803a;
+  --c-good-bg: #d9f2e3;
+  --c-good-text: #0e6b32;
+  --c-warn-bg: #fdeccf;
+  --c-warn-text: #9a5b12;
+  --c-bad-bg: #fef3f2;
+  --c-bad-border: #fecdca;
+  --c-bad-text: #b42318;
+
+  /* chart and marker colours */
+  --c-c1: #0f9488;
+  --c-c2: #8b5cf6;
+  --c-c3: #f2784b;
+  --c-c4: #6366f1;
+  --c-c5: #9aa8ac;
+
+  /* login page decoration */
+  --c-bubble-a: #d6f3ee;
+  --c-bubble-b: #b0e6dd;
+  --c-bubble-s1: #0b6f8a;
+  --c-bubble-s2: #0f9488;
+  --c-bubble-s3: #7fd6c9;
+  --c-dot: #8fd0c6;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --c-page: #0a1214;
+  --c-surface: #111b1e;
+  --c-band: #0d1619;
+  --c-subtle: #162225;
+  --c-track: #1c2a2e;
+  --c-border: #233236;
+  --c-border-strong: #324449;
+
+  --c-text: #eaf4f2;
+  --c-text-2: #c4d6d3;
+  --c-text-3: #a2b8b4;
+  --c-muted: #7e9692;
+  --c-faint: #5b7270;
+  --c-on-accent: #04201c;
+
+  --c-accent: #2dd4bf;
+  --c-link: #5eead4;
+  --c-accent-soft: #123430;
+  --c-soft-2: #1b4a44;
+  --c-grad-from: #34e0c8;
+  --c-grad-via: #14b8a6;
+  --c-grad-to: #0e8fa6;
+
+  --c-good: #3fbf8a;
+  --c-good-bg: #133328;
+  --c-good-text: #3fbf8a;
+  --c-warn-bg: #33290f;
+  --c-warn-text: #e0b65a;
+  --c-bad-bg: #2a1513;
+  --c-bad-border: #5a2a25;
+  --c-bad-text: #f08a7e;
+
+  --c-c1: #2dd4bf;
+  --c-c2: #a78bfa;
+  --c-c3: #fb8c5f;
+  --c-c4: #818cf8;
+  --c-c5: #7e9692;
+
+  --c-bubble-a: #0d2623;
+  --c-bubble-b: #123430;
+  --c-bubble-s1: #0e6f82;
+  --c-bubble-s2: #14b8a6;
+  --c-bubble-s3: #5eead4;
+  --c-dot: #1f5a53;
+}
+
+/*
+ * Tailwind's own white, greys and reds follow the theme too, so classes like bg-white, border-gray-200 and
+ * bg-red-50 change with it and need no per-theme variants.
+ */
+@theme inline {
+  --color-white: var(--c-surface);
+  --color-gray-50: var(--c-subtle);
+  --color-gray-100: var(--c-track);
+  --color-gray-200: var(--c-border);
+  --color-gray-300: var(--c-border-strong);
+  --color-gray-400: var(--c-faint);
+  --color-gray-500: var(--c-muted);
+  --color-gray-600: var(--c-text-3);
+  --color-red-50: var(--c-bad-bg);
+  --color-red-200: var(--c-bad-border);
+  --color-red-600: var(--c-bad-text);
+  --color-red-700: var(--c-bad-text);
+}
+
+body {
+  background: var(--c-page);
+  color: var(--c-text);
+}
+
 /* Keeps an element scrollable while hiding its scrollbar. */
 @utility scrollbar-none {
   scrollbar-width: none;
@@ -7,5 +140,100 @@
 
   &::-webkit-scrollbar {
     display: none;
+  }
+}
+
+/*
+ * Motion. Pages fade up, report cards stagger in, panels pop open and bars grow. Everything respects
+ * "reduce motion" (see the end of this file).
+ */
+@theme {
+  --animate-page: page-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-reveal: reveal 0.3s ease-out both;
+  --animate-pop: pop 0.18s ease-out both;
+  --animate-grow: grow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes page-in {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes reveal {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes pop {
+    from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes grow {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+}
+
+/* Children of a .stagger container fade up one after another. */
+.stagger > * {
+  animation: page-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; /* backwards: hover transforms still work afterwards */
+}
+.stagger > *:nth-child(2) { animation-delay: 70ms; }
+.stagger > *:nth-child(3) { animation-delay: 140ms; }
+.stagger > *:nth-child(4) { animation-delay: 210ms; }
+.stagger > *:nth-child(5) { animation-delay: 280ms; }
+.stagger > *:nth-child(6) { animation-delay: 350ms; }
+.stagger > *:nth-child(n + 7) { animation-delay: 420ms; }
+
+/* Cards lift their shadow on hover (no transform: some cards hold fixed-position drawers). */
+main section[class*="rounded-2xl"] {
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+main section[class*="rounded-2xl"]:hover {
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--c-accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--c-accent) 35%, var(--c-border));
+}
+
+/* Buttons and links respond to a press. */
+button:not(:disabled) {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: 0.18s;
+}
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+/* Table rows light up under the pointer. */
+main tbody tr {
+  transition: background-color 0.15s ease;
+}
+main tbody tr:hover {
+  background-color: color-mix(in srgb, var(--c-accent-soft) 55%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* A side panel sliding in from the right. */
+@theme {
+  --animate-slide: slide-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateX(32px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+/* A fade for the dim layer behind a side panel. */
+@theme {
+  --animate-fade: fade-in 0.25s ease-out both;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 }

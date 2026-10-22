@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 
 import routes from './src/routes/index.js';
+import { warmDashboardCache } from './src/modules/dashboard/dashboard.warmup.js';
 
 dotenv.config();
 
@@ -21,4 +22,6 @@ app.use((_req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    warmDashboardCache();
 });
+

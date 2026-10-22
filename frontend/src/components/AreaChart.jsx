@@ -4,7 +4,7 @@ import { niceMax, smoothPath } from '../utils/chartMath';
 
 const PAD = { top: 10, right: 24, bottom: 26, left: 30 };
 const DOTS_UNTIL = 31; // draw a dot on every point only while the line is not crowded
-const LINE = '#d9631f';
+const LINE = 'var(--c-accent)';
 
 /** y-axis top: a "nice" number that splits evenly into four gridline steps. */
 const axisMax = (peak) => Math.ceil(niceMax(peak) / 4) * 4;
@@ -26,7 +26,7 @@ function AreaChart({ title, series, loading, noun, nounPlural = `${noun}s`, empt
     const el = wrapRef.current;
     if (!el) return undefined;
 
-    const observer = new ResizeObserver(([entry]) => setWidth(Math.max(260, Math.floor(entry.contentRect.width))));
+    const observer = new ResizeObserver(([entry]) => setWidth(Math.max(160, Math.floor(entry.contentRect.width))));
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
@@ -65,7 +65,7 @@ function AreaChart({ title, series, loading, noun, nounPlural = `${noun}s`, empt
     <div className="flex h-full min-w-0 flex-col">
       <h3 className="truncate text-sm font-semibold">{title}</h3>
 
-      <div ref={wrapRef} className={`relative mt-3 flex-1 transition-opacity ${loading && n > 0 ? 'opacity-60' : ''}`} style={{ minHeight: height }}>
+      <div ref={wrapRef} className={`relative mt-3 min-w-0 flex-1 overflow-hidden transition-opacity ${loading && n > 0 ? 'opacity-60' : ''}`} style={{ minHeight: height }}>
         {n === 0 ? (
           <div className="h-full animate-pulse rounded-xl bg-gray-50" style={{ minHeight: height }} />
         ) : (
@@ -96,10 +96,10 @@ function AreaChart({ title, series, loading, noun, nounPlural = `${noun}s`, empt
                     x2={width - PAD.right}
                     y1={tick.y}
                     y2={tick.y}
-                    stroke={tick.value === 0 ? '#e3d9d2' : '#efe6df'}
+                    stroke={tick.value === 0 ? 'var(--c-border-strong)' : 'var(--c-border)'}
                     strokeDasharray={tick.value === 0 ? undefined : '3 4'}
                   />
-                  <text x={PAD.left - 8} y={tick.y + 3.5} textAnchor="end" fontSize="11" fill="#7b8196" className="tabular-nums">
+                  <text x={PAD.left - 8} y={tick.y + 3.5} textAnchor="end" fontSize="11" fill="var(--c-muted)" className="tabular-nums">
                     {tick.value}
                   </text>
                 </g>
@@ -114,7 +114,7 @@ function AreaChart({ title, series, loading, noun, nounPlural = `${noun}s`, empt
               {buckets.map(
                 (bucket, i) =>
                   i % labelStep === 0 && (
-                    <text key={bucket.from} x={points[i].x} y={height - 8} textAnchor="middle" fontSize="11" fill="#7b8196">
+                    <text key={bucket.from} x={points[i].x} y={height - 8} textAnchor="middle" fontSize="11" fill="var(--c-muted)">
                       {bucket.label}
                     </text>
                   )
@@ -137,7 +137,7 @@ function AreaChart({ title, series, loading, noun, nounPlural = `${noun}s`, empt
                   transform: 'translate(-50%, -100%)',
                 }}
               >
-                <p className="font-medium text-[#3a3f55]">{hovered.bucket.title}</p>
+                <p className="font-medium text-(--c-text-2)">{hovered.bucket.title}</p>
                 <p className="mt-1 flex items-center gap-1.5 font-semibold">
                   <span className="h-2 w-2 rounded-full" style={{ background: LINE }} />
                   {hovered.bucket.count} {hovered.bucket.count === 1 ? noun : nounPlural}
@@ -146,7 +146,7 @@ function AreaChart({ title, series, loading, noun, nounPlural = `${noun}s`, empt
             )}
 
             {empty && (
-              <p className="pointer-events-none absolute inset-x-0 top-[38%] text-center text-sm text-[#7b8196]">{emptyText}</p>
+              <p className="pointer-events-none absolute inset-x-0 top-[38%] text-center text-sm text-(--c-muted)">{emptyText}</p>
             )}
           </>
         )}

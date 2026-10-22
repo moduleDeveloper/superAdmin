@@ -21,7 +21,7 @@ function BackLink({ to, label }) {
   };
 
   return (
-    <Link to={to} onClick={goBack} className="text-sm font-medium text-[#b04a4f] hover:underline">
+    <Link to={to} onClick={goBack} className="text-sm font-medium text-(--c-link) hover:underline">
       ← {text}
     </Link>
   );

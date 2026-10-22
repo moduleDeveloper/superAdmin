@@ -62,7 +62,7 @@ function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="mt-6 flex h-14 w-full cursor-pointer items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-[#ee7b3e] via-[#b04a4f] to-[#5b2650] text-lg font-medium text-white shadow-[0_8px_18px_rgba(120,40,70,0.3)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
+        className="mt-6 flex h-14 w-full cursor-pointer items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-(--c-grad-from) via-(--c-grad-via) to-(--c-grad-to) text-lg font-medium text-white shadow-[0_8px_18px_color-mix(in_srgb,var(--c-accent)_35%,transparent)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
       >
         {loading ? 'Signing in…' : 'Sign In'}
         {!loading && <ArrowIcon />}
