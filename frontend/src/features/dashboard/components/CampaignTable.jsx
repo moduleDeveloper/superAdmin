@@ -2,13 +2,14 @@ import { Fragment, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import ScrollTable from '../../../components/ScrollTable';
+import { formatPercent, percentOf } from '../../../utils/percent';
 import { COLORS } from '../../marketing/utils/leadStats';
 
 const SMALL_SAMPLE = 10; // fewer leads than this and a percentage is too shaky to read much into
 
-const th = 'px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.06em] text-(--c-muted)';
+const th = 'px-3 py-3 text-left align-top text-xs font-bold uppercase tracking-[0.06em] text-(--c-text)';
+const sm = 'mt-1 block text-[0.7rem] font-normal normal-case leading-snug tracking-normal text-(--c-muted)';
 const number = (value) => value.toLocaleString('en-IN');
-const percent = (part, whole) => (whole > 0 ? Math.round((part / whole) * 100) : null);
 
 const BADGES = {
   Facebook: { text: 'Fb', color: COLORS.facebook },
@@ -17,6 +18,7 @@ const BADGES = {
   'Google Ads': { text: 'Gs', color: COLORS.google },
   WhatsApp: { text: 'Wa', color: '#1fa855' },
   Organic: { text: 'Or', color: '#d63384' },
+  Unknown: { text: '?', color: '#64748b' },
 };
 
 function Badge({ channel }) {
@@ -28,6 +30,49 @@ function Badge({ channel }) {
       aria-hidden="true"
     >
       {text}
+    </span>
+  );
+}
+
+/** Logo tile for a sub-row: Facebook and Instagram get their logos, an ad set a neutral tag, other platforms the usual letters. */
+function RowIcon({ kind, label }) {
+  const tile = 'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white';
+  const svg = { viewBox: '0 0 24 24', className: 'h-4 w-4', 'aria-hidden': true };
+  if (kind === 'platform' && label === 'Facebook') {
+    return (
+      <span className={tile} style={{ background: '#1877f2' }}>
+        <svg {...svg} fill="currentColor">
+          <path d="M13.5 21v-7.5h2.5l.4-3h-2.9V8.6c0-.9.3-1.4 1.5-1.4h1.5V4.5c-.3 0-1.2-.1-2.2-.1-2.2 0-3.7 1.3-3.7 3.8v2.3H8v3h2.6V21h2.9z" />
+        </svg>
+      </span>
+    );
+  }
+  if (kind === 'platform' && label === 'Instagram') {
+    return (
+      <span className={tile} style={{ background: 'linear-gradient(45deg, #f9a03f 0%, #e1306c 50%, #833ab4 100%)' }}>
+        <svg {...svg} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <rect x="4" y="4" width="16" height="16" rx="4.5" />
+          <circle cx="12" cy="12" r="3.6" />
+          <circle cx="16.9" cy="7.1" r="0.6" fill="currentColor" />
+        </svg>
+      </span>
+    );
+  }
+  if (kind === 'platform') {
+    const { text, color } = BADGES[label] ?? { text: 'Ot', color: COLORS.other };
+    return (
+      <span className={`${tile} text-[0.62rem] font-bold`} style={{ background: color }}>
+        {text}
+      </span>
+    );
+  }
+  // ad set: a tag
+  return (
+    <span className={`${tile} bg-(--c-track) text-(--c-muted)`}>
+      <svg {...svg} fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3.5 12.5V5a1.5 1.5 0 0 1 1.5-1.5h7.5L20.5 11.5 12 20z" />
+        <circle cx="8" cy="8" r="1.2" fill="currentColor" stroke="none" />
+      </svg>
     </span>
   );
 }
@@ -54,80 +99,74 @@ function NumberLink({ to, title, children }) {
   );
 }
 
-/** `pathFor(stage)` is the page listing the people behind a number: all leads, or those who logged in ('loggedIn') / built an app ('app'). */
+/** A number that opens the list behind it; a zero has nothing to open. */
+function Count({ value, to, title }) {
+  return value > 0 ? (
+    <NumberLink to={to} title={title}>
+      {number(value)}
+    </NumberLink>
+  ) : (
+    <span className="font-semibold">0</span>
+  );
+}
+
+/** `pathFor(stage)` is the page listing the people behind a number; every number opens exactly the people (or leads) it counts. */
 function Figures({ row, pathFor }) {
   const leadsTo = pathFor();
-  const activeRate = percent(row.activeCreators, row.creators);
-  const leadToApp = percent(row.creators, row.leads);
+  const notLoggedIn = Math.max(row.leads - row.loggedIn, 0); // leads who never logged in
+  const noApp = Math.max(row.loggedIn - row.creators, 0); // logged in but did not create an app
+  const leadToApp = percentOf(row.creators, row.leads);
   const shaky = row.leads < SMALL_SAMPLE;
+  const slash = <span className="px-1.5 text-(--c-faint)">/</span>;
 
   return (
     <>
-      <td className="px-4 py-3 tabular-nums text-(--c-text-2)">
-        {leadsTo ? (
-          <Link
-            to={leadsTo}
-            state={{ backLabel: 'Dashboard' }}
-            title="See these leads"
-            className="rounded-md px-1.5 py-0.5 font-semibold text-(--c-link) underline decoration-dotted underline-offset-4 hover:bg-(--c-accent-soft)"
-          >
-            {number(row.leads)}
-          </Link>
-        ) : (
-          number(row.leads)
-        )}
+      <td className="px-3 py-3 tabular-nums text-(--c-text-2)">
+        <Count value={row.leads} to={leadsTo} title="See all these leads" />
       </td>
-      <td className="px-4 py-3 tabular-nums text-(--c-text-2)">
-        {row.loggedIn > 0 ? (
-          <NumberLink to={pathFor('loggedIn')} title="See the people who logged in">
-            {number(row.loggedIn)}
-          </NumberLink>
-        ) : (
-          number(row.loggedIn)
-        )}
+      <td className="whitespace-nowrap px-3 py-3 tabular-nums text-(--c-text-2)">
+        <Count value={row.loggedIn} to={pathFor('loggedIn')} title="See the leads who logged in" />
+        {slash}
+        <Count value={notLoggedIn} to={pathFor('notLoggedIn')} title="See the leads who never logged in" />
       </td>
-      <td className="px-4 py-3 tabular-nums">
-        {row.apps > 0 ? (
-          <NumberLink to={pathFor('app')} title={`${number(row.creators)} people built ${number(row.apps)} app${row.apps === 1 ? '' : 's'}: see who`}>
-            {number(row.apps)}
-          </NumberLink>
-        ) : (
-          <span className="font-semibold">0</span>
-        )}
+      <td className="whitespace-nowrap px-3 py-3 tabular-nums text-(--c-text-2)">
+        <Count value={row.creators} to={pathFor('app')} title={`See the people who created an app (${number(row.apps)} app${row.apps === 1 ? '' : 's'} in total)`} />
+        {slash}
+        <Count value={noApp} to={pathFor('noApp')} title="See the people who logged in but have not created an app" />
       </td>
-      <td className="px-4 py-3 font-semibold tabular-nums">{number(row.activeCreators)}</td>
-      <td className="px-4 py-3">
-        {activeRate === null ? (
+      <td className="px-3 py-3 tabular-nums">
+        <Count value={row.activeCreators} to={pathFor('active')} title="See the people whose app is in use" />
+        <span className="block px-1.5 text-xs text-(--c-muted)">of {number(row.creators)}</span>
+      </td>
+      <td className={`px-4 py-3 tabular-nums ${shaky ? 'opacity-60' : ''}`} title={shaky ? 'Few leads: treat this percentage with care' : undefined}>
+        {leadToApp === null || row.creators === 0 ? (
           <span className="text-(--c-faint)">—</span>
         ) : (
-          <div className={`flex items-center gap-3 ${shaky ? 'opacity-50' : ''}`} title={shaky ? 'Few leads: treat this percentage with care' : undefined}>
-            <span className="h-2 w-24 rounded-full bg-(--c-track)">
-              <span className="block h-full rounded-full bg-(--c-accent)" style={{ width: `${activeRate}%` }} />
-            </span>
-            <span className="w-9 text-right font-semibold tabular-nums">{activeRate}%</span>
-          </div>
+          <span className="px-1.5 font-semibold">{formatPercent(leadToApp)}%</span>
         )}
-      </td>
-      <td className={`px-4 py-3 font-semibold tabular-nums ${shaky ? 'text-(--c-faint)' : ''}`} title={shaky ? 'Few leads: treat this percentage with care' : undefined}>
-        {leadToApp === null ? '—' : `${leadToApp}%`}
       </td>
     </>
   );
 }
 
 /** Sub-rows of a campaign; `field` ('platform' | 'adSet') narrows the lead page opened from a row's Leads number. */
-function SubRows({ title, rows, leadsPath, field }) {
+function SubRows({ title, rows, leadsPath, field, iconLabel }) {
   if (rows.length === 0) return null;
   return (
     <>
       <tr className="bg-(--c-page)">
-        <td colSpan={7} className="px-4 py-1.5 pl-16 text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-(--c-muted)">
+        <td colSpan={6} className="border-t border-gray-200 px-4 py-2 pl-14 text-[0.7rem] font-bold uppercase tracking-[0.1em] text-(--c-link)">
           {title}
         </td>
       </tr>
       {rows.map((row) => (
         <tr key={`${title}-${row.label}`} className="bg-(--c-page)">
-          <td className="px-4 py-2.5 pl-16 text-(--c-text-2)">{row.label}</td>
+          <td className="px-4 py-2.5 pl-14">
+            <div className="flex items-center gap-2.5">
+              <RowIcon kind={field} label={iconLabel ?? row.label} />
+              <span className="font-semibold text-(--c-text-2)">{row.label}</span>
+            </div>
+          </td>
           <Figures row={row} pathFor={(stage) => leadsPath({ [field]: row.label, ...(stage && { stage }) })} />
         </tr>
       ))}
@@ -150,7 +189,8 @@ function CampaignTable({ campaigns, scope, control, filter, sourceKey, embedded 
 
   // The page listing the leads behind a row: this campaign (optionally one platform / ad set), for the period shown here.
   const leadsPath = (campaign, extra = {}) => {
-    const params = new URLSearchParams({ campaign, ...(sourceKey && { source: sourceKey }), ...extra });
+    const channels = campaigns?.find((item) => item.label === campaign)?.channels; // tells the lead page which platform filters make sense
+    const params = new URLSearchParams({ campaign, ...(sourceKey && { source: sourceKey }), ...(channels?.length && { channels: channels.join(',') }), ...extra });
     if (filter?.range) params.set('range', filter.range);
     if (filter?.range === 'custom') {
       if (filter.from) params.set('from', filter.from);
@@ -182,21 +222,36 @@ function CampaignTable({ campaigns, scope, control, filter, sourceKey, embedded 
         <p className="mt-4 rounded-xl border border-gray-200 px-4 py-10 text-center text-sm text-(--c-muted)">No leads in this period</p>
       ) : (
         <ScrollTable className="mt-4">
-          <table className="w-full min-w-[820px] text-sm">
+          <table className="w-full text-sm">
             <thead className="bg-(--c-page)">
               <tr>
                 <th className={th}>Campaign</th>
-                <th className={th}>Leads</th>
-                <th className={th} title="People who logged in to the app">People Logged In</th>
-                <th className={th} title="Total apps built by the people from this campaign (one person can build more than one)">Total Apps Created</th>
-                <th className={th} title="People who built an app that has had activity">Active People</th>
-                <th className={th} title="Of the people who created an app, how many have an app with activity">Active Rate</th>
-                <th className={th} title="Of the leads, how many created an app">Lead → App</th>
+                <th className={`${th}`}>
+                  <span className="block">Total Leads</span>
+                  <small className={sm}>Filled the lead form</small>
+                </th>
+                <th className={`${th}`}>
+                  <span className="block">Logged In / Not Logged In</span>
+                  <small className={sm}>Logged in to the app / never logged in</small>
+                </th>
+                <th className={`${th}`}>
+                  <span className="block">Created App / No App</span>
+                  <small className={sm}>Built an app / not built yet</small>
+                </th>
+                <th className={`${th}`}>
+                  <span className="block">Apps In Use</span>
+                  <small className={sm}>App has activity</small>
+                </th>
+                <th className={`${th}`}>
+                  <span className="block">Lead → App</span>
+                  <small className={sm}>% of leads who built an app</small>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {campaigns.map((campaign) => {
-                const expandable = campaign.platforms.length > 1 || campaign.adSets.length > 0;
+                const whatsapp = campaign.kind === 'whatsapp';
+                const expandable = campaign.platforms.length > 1 || campaign.adSets.length > 0 || whatsapp;
                 const isOpen = open.has(campaign.label);
 
                 return (
@@ -204,17 +259,17 @@ function CampaignTable({ campaigns, scope, control, filter, sourceKey, embedded 
                     <tr>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <Badge channel={campaign.channels[0]} />
+                          <Badge channel={whatsapp ? 'WhatsApp' : campaign.channels[0]} />
                           <div className="min-w-0">
                             <p className="font-semibold">{campaign.label}</p>
-                            <p className="text-xs text-(--c-muted)">{campaign.channels.join(' · ')}</p>
+                            <p className="text-xs text-(--c-muted)">{[...(whatsapp ? ['WhatsApp'] : []), ...campaign.channels].join(' · ')}</p>
                           </div>
                           {expandable && (
                             <button
                               type="button"
                               onClick={() => toggle(campaign.label)}
                               aria-expanded={isOpen}
-                              title={isOpen ? 'Hide the split' : 'Split by platform and ad set'}
+                              title={isOpen ? 'Hide the split' : whatsapp ? 'Split by sub source' : 'Split by platform and ad set'}
                               className="ml-auto inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-gray-200 text-(--c-muted) hover:bg-gray-50"
                             >
                               <Chevron open={isOpen} />
@@ -226,7 +281,7 @@ function CampaignTable({ campaigns, scope, control, filter, sourceKey, embedded 
                     </tr>
                     {isOpen && (
                       <>
-                        <SubRows title="By platform" rows={campaign.platforms} leadsPath={(extra) => leadsPath(campaign.label, extra)} field="platform" />
+                        <SubRows title={whatsapp ? 'By sub source' : 'By platform'} rows={campaign.platforms} leadsPath={(extra) => leadsPath(campaign.label, extra)} field="platform" iconLabel={whatsapp ? 'WhatsApp' : undefined} />
                         <SubRows title="By ad set" rows={campaign.adSets} leadsPath={(extra) => leadsPath(campaign.label, extra)} field="adSet" />
                       </>
                     )}

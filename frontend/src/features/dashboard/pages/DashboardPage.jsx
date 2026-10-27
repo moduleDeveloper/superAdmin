@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigationType, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
 
 import AreaChart from '../../../components/AreaChart';
 // import { PieIcon } from '../../../components/sidebar/icons'; // Lead Mix & Conversion card
 // import DonutChart from '../../../components/DonutChart'; // Lead Mix & Conversion card (hidden for now)
 import PeriodFilter from '../../../components/PeriodFilter';
 import { AppsIcon, CampaignIcon, ChartIcon, TargetIcon, TrendIcon } from '../../../components/sidebar/icons';
-import StatsGrid from '../../../components/StatsGrid';
+import StatCards from '../../../components/StatCards';
 import { useSessionState } from '../../../hooks/useSessionState';
 // import { COLORS } from '../../marketing/utils/leadStats'; // Lead Mix & Conversion card
+import { formatPercent, percentOf } from '../../../utils/percent';
+import { periodQuery } from '../../member-insights/utils/periodQuery';
 import { periodTitle } from '../../trust-insights/utils/periodTitle';
 import { buildActivitySeries } from '../../trust-insights/utils/trustSeries';
 import CampaignTable from '../components/CampaignTable';
@@ -86,12 +88,19 @@ function DashboardPage() {
   const returning = savedY > 0;
 
   // Opened from a sidebar link: open that card and scroll to it (not when coming back: that returns to the saved place).
+  // location.key changes on every click of a link, even to the address already shown, so the same link works again.
+  // Only the first run after coming back is skipped: later clicks on the top bar always scroll.
+  const { key: locationKey } = useLocation();
+  const skipScroll = useRef(returning);
   useEffect(() => {
     if (!openParam || !REPORT_IDS.includes(openParam)) return;
     setOpen((prev) => ({ ...prev, [openParam]: true }));
-    if (returning) return;
+    if (skipScroll.current) {
+      skipScroll.current = false;
+      return;
+    }
     requestAnimationFrame(() => document.getElementById(`report-${openParam}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-  }, [openParam, sourceKey, setOpen, returning]);
+  }, [openParam, sourceKey, setOpen, locationKey]);
 
   const restored = useRef(false);
   const ready = Boolean(data);
@@ -126,30 +135,39 @@ function DashboardPage() {
   // }));
 
   const t = data?.totals;
+  const period = periodQuery(filter);
+  const withPeriod = (path, extra) => `${path}${period}${extra ? `${period ? '&' : '?'}${extra}` : ''}`;
   const stats = [
     {
-      marker: 'var(--c-c2)',
+      accent: 'var(--c-c2)',
       label: 'New Members',
-      value: number(t?.membersInPeriod),
-      hint: t ? `Total ${number(t.members)} · ${number(t.appDownloaded)} app downloads` : undefined,
+      parts: [{ value: number(t?.membersInPeriod) }],
     },
     {
-      marker: 'var(--c-good)',
+      accent: 'var(--c-bad-text)',
+      label: 'OTP Not Login',
+      parts: [
+        { value: number(t?.otpNotLogin), caption: 'Not login', color: '#dc2626', to: withPeriod('/otp-not-login', 'status=notLoggedIn') },
+        { value: number(t?.otpLoggedIn), caption: 'Logged in', color: '#16a34a', to: withPeriod('/otp-not-login', 'status=loggedIn') },
+      ],
+    },
+    {
+      accent: 'var(--c-good)',
       label: 'New Apps',
-      value: number(t?.trustsInPeriod),
+      parts: [{ value: number(t?.trustsInPeriod) }],
+      to: withPeriod('/new-apps'),
       hint: t ? `Total ${number(t.trusts)} · ${number(t.trustsToday)} today` : undefined,
     },
     {
-      marker: 'var(--c-c3)',
+      accent: 'var(--c-c3)',
       label: 'New Leads',
-      value: number(t?.leadsInPeriod),
+      parts: [{ value: number(t?.leadsInPeriod) }],
       hint: t ? `Total ${number(t.leads)} · ${number(t.leadsToday)} today` : undefined,
     },
     {
-      marker: 'var(--c-c4)',
+      accent: 'var(--c-c4)',
       label: 'App Activity',
-      value: number(data?.activity.total),
-      hint: data ? `${number(data.activity.byUsers)} by users · ${number(data.activity.byMembers)} by members` : undefined,
+      parts: [{ value: number(data?.activity.total) }],
     },
   ];
 
@@ -164,7 +182,7 @@ function DashboardPage() {
   const campaigns = leadData?.campaigns;
   // const conversion = leadData?.leadConversion;
   // const conversionRate = conversion?.withMobile ? Math.round((conversion.converted / conversion.withMobile) * 100) : null;
-  const stillActive = (s) => (s?.creators ? `${Math.round((s.activeCreators / s.creators) * 100)}%` : '—');
+  const stillActive = (s) => (s?.creators ? `${formatPercent(percentOf(s.activeCreators, s.creators))}%` : '—');
   const initialLoad = loading && !data;
 
   return (
@@ -183,8 +201,8 @@ function DashboardPage() {
         <PeriodFilter filter={filter} onChange={setFilter} />
       </div>
 
-      <section className="mt-4 rounded-2xl border border-(--c-border) bg-(--c-band) py-2">
-        <StatsGrid stats={stats} loading={initialLoad} />
+      <section className="mt-4">
+        <StatCards stats={stats} loading={initialLoad} />
       </section>
 
       <div className="mt-5">
@@ -248,7 +266,13 @@ function DashboardPage() {
           onToggle={() => toggle('campaigns')}
           summary={campaigns && `${campaigns.length} campaign${campaigns.length === 1 ? '' : 's'}${campaigns[0] ? ` · top: ${campaigns[0].label}` : ''}`}
         >
-          <CampaignTable campaigns={campaigns} scope={label} filter={filter} sourceKey={sourceKey} embedded />
+          <CampaignTable
+            campaigns={campaigns}
+            scope={label}
+            filter={filter}
+            sourceKey={sourceKey}
+            embedded
+          />
         </ReportSection>
 
         <ReportSection

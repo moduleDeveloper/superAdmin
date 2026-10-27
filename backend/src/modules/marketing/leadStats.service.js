@@ -8,12 +8,16 @@ const unwrap = ({ data, count, error }) => {
     return { data, count };
 };
 
-const last10 = (value) => String(value ?? '').replace(/\D/g, '').slice(-10);
+export const last10 = (value) => String(value ?? '').replace(/\D/g, '').slice(-10);
+
+/** True for the WhatsApp source (Members.source = 'WA Broadcasting'). */
+const isWhatsAppSource = (source) => /whats\s*app|\bwa\b/i.test(source ?? '');
 
 /** Where a lead came from: Facebook / Instagram (Meta platform), Website, or something else. */
 export function leadChannel(lead) {
     if (lead.platform === 'fb') return 'Facebook';
     if (lead.platform === 'ig') return 'Instagram';
+    if (isWhatsAppSource(lead.source)) return lead.sub_source?.trim() || 'WhatsApp';
     if (/website/i.test(lead.source ?? '')) return 'Website';
     if (/google/i.test(lead.source ?? '')) return 'Google Ads';
     if (/meta/i.test(lead.source ?? '')) return 'Meta (other)';
@@ -28,7 +32,8 @@ const receivedAt = (lead) => new Date(lead.lead_received_at).getTime();
  * Matches leads to members: a member with the same mobile number (last 10 digits) who joined after the lead came in
  * (someone who was already a member did not come from the ad). Leads without a usable number cannot be matched.
  * A person who enquired more than once is one person, belonging to their first lead.
- * Returns { withMobile (different phone numbers), members: Map of phone -> members_id, first: Map of phone -> first lead }.
+ * Returns { withMobile (different phone numbers), members: Map of phone -> members_id, names: Map of phone -> member name,
+ * first: Map of phone -> first lead }.
  */
 async function matchLeadMembers(leads) {
     const first = new Map();
@@ -38,10 +43,14 @@ async function matchLeadMembers(leads) {
     });
 
     const members = new Map();
+    const names = new Map();
     const toLookUp = [];
     first.forEach((lead, key) => {
         // organic members already carry their members_id: nothing to look up
-        if (lead.members_id) members.set(key, lead.members_id);
+        if (lead.members_id) {
+            members.set(key, lead.members_id);
+            if (lead.name) names.set(key, lead.name);
+        }
         else toLookUp.push(Number(key));
     });
 
@@ -49,16 +58,19 @@ async function matchLeadMembers(leads) {
     for (let i = 0; i < batches.length; i += LOOKUP_PARALLEL) {
         await Promise.all(
             batches.slice(i, i + LOOKUP_PARALLEL).map(async (mobiles) => {
-                const { data } = unwrap(await supabase.from('Members').select('Mobile, members_id, created_at').in('Mobile', mobiles));
+                const { data } = unwrap(await supabase.from('Members').select('Mobile, members_id, created_at, Name').in('Mobile', mobiles));
                 data.forEach((member) => {
                     const key = last10(member.Mobile);
-                    if (new Date(member.created_at).getTime() >= receivedAt(first.get(key))) members.set(key, member.members_id);
+                    if (new Date(member.created_at).getTime() >= receivedAt(first.get(key))) {
+                        members.set(key, member.members_id);
+                        if (member.Name) names.set(key, member.Name);
+                    }
                 });
             })
         );
     }
 
-    return { withMobile: first.size, members, first };
+    return { withMobile: first.size, members, names, first };
 }
 
 /** Of these leads, how many became members (see matchLeadMembers). */
@@ -94,11 +106,11 @@ async function loggedInMemberIds() {
  * that app has had activity. Returns { withMobile, people: [{ lead (their first), memberId, loggedIn, apps: [{ id, active }] }] },
  * one entry per person who became a member; apps are only looked up for people who logged in.
  */
-export async function traceLeadPeople(leads) {
-    const { withMobile, members, first } = await matchLeadMembers(leads);
+export async function traceLeadPeople(leads, loginMemberIds) {
+    const { withMobile, members, names, first } = await matchLeadMembers(leads);
 
     // Who has logged in at least once: read all login sessions in a few big pages (far fewer queries than asking per member)
-    const everLoggedIn = await loggedInMemberIds();
+    const everLoggedIn = loginMemberIds ?? await loggedInMemberIds();
     const loggedIn = new Set([...new Set(members.values())].filter((id) => everLoggedIn.has(id)));
 
     // member -> superuser -> the apps (Trust rows) that superuser owns
@@ -136,6 +148,7 @@ export async function traceLeadPeople(leads) {
         people: [...members].map(([phone, memberId]) => ({
             lead: first.get(phone),
             memberId,
+            name: names.get(phone) ?? first.get(phone)?.name ?? null,
             loggedIn: loggedIn.has(memberId),
             apps: appsByMember.get(memberId) ?? [],
         })),
@@ -176,6 +189,7 @@ function campaignOf(lead) {
     if (/website/i.test(lead.source ?? '')) return 'Website (no campaign)';
     if (/google/i.test(lead.source ?? '')) return 'Google Ads (no campaign)';
     if (/meta/i.test(lead.source ?? '')) return 'Meta (no campaign)';
+    if (isWhatsAppSource(lead.source)) return 'WhatsApp Broadcasting';
     return `${lead.source?.trim() || 'Other'} (no campaign)`;
 }
 
@@ -228,6 +242,8 @@ export function campaignPerformance(leads, trace) {
         const inCampaign = peopleByCampaign.get(campaign) ?? [];
         return {
             channels: [...new Set(rows.map(leadChannel))],
+            // WhatsApp broadcasts have no campaign name: they are split by Members.sub_source (e.g. Directory) instead of Facebook / Instagram
+            kind: rows.every((lead) => isWhatsAppSource(lead.source)) ? 'whatsapp' : undefined,
             platforms: groupRows(rows, inCampaign, leadChannel),
             adSets: groupRows(rows, inCampaign, adSetOf),
         };
@@ -241,14 +257,17 @@ const SOURCES = [
     { key: 'google', label: 'Google Ads' },
     { key: 'website', label: 'Website' },
     { key: 'organic', label: 'Organic' },
+    { key: 'unknown', label: 'Unknown' },
 ];
 const sourceOf = (lead) => {
     const source = lead.source ?? '';
-    if (/whats\s*app|\bwa\b/i.test(source)) return 'whatsapp';
+    if (isWhatsAppSource(source)) return 'whatsapp';
     if (/organic/i.test(source)) return 'organic'; // members who joined on their own (Members.source = 'Organic')
+    if (/^unknown$/i.test(source.trim())) return 'unknown'; // members with no source at all (Members.source is empty)
     if (/website/i.test(source)) return 'website';
     if (/google/i.test(source)) return 'google';
     if (/meta|facebook|instagram/i.test(source) || ['fb', 'ig'].includes(lead.platform)) return 'meta';
+    if (!source.trim()) return 'unknown';
     return 'organic'; // no recognisable ad source
 };
 
@@ -270,7 +289,31 @@ export const organicMemberLead = (member) => ({
     adset_name: member.sub_source ?? null,
 });
 
-/** Key of the source a lead came from: meta, whatsapp, google, website or organic. */
+/**
+ * WhatsApp people are not in `leads` either: they are the members whose Members.source is 'WA Broadcasting'. Each one is
+ * treated as a lead received when they joined; Members.sub_source (e.g. "Directory") tells the kinds of WhatsApp apart.
+ */
+export const isWhatsAppMember = (member) => isWhatsAppSource(member.source);
+export const whatsappMemberLead = (member) => ({
+    ...organicMemberLead(member),
+    source: member.source,
+    sub_source: member.sub_source ?? null,
+    adset_name: null,
+    is_organic: null,
+});
+
+/**
+ * Members with no source (Members.source is empty) are not in `leads` either: nobody knows where they came from.
+ * Like organic members, each one is treated as a lead received when they joined, under the source "Unknown".
+ */
+export const isUnknownMember = (member) => !String(member.source ?? '').trim();
+export const unknownMemberLead = (member) => ({
+    ...organicMemberLead(member),
+    source: 'Unknown',
+    is_organic: null,
+});
+
+/** Key of the source a lead came from: meta, whatsapp, google, website, organic or unknown. */
 export const sourceKeyOf = (lead) => sourceOf(lead);
 
 /** Name of the source a lead came from (Meta Ads, WhatsApp, Google Ads, Website, Organic). */
@@ -360,6 +403,9 @@ export async function getLeadPeriodStats(start, end) {
     };
 }
 
+/** The numbers of the campaign table that open a lead list: logged in / not logged in / created an app / logged in but no app / app in use. */
+const STAGES = ['loggedIn', 'notLoggedIn', 'app', 'noApp', 'active'];
+
 const LEAD_PAGE_SIZE = 1000;
 const LEAD_MAX_ROWS = 20000;
 
@@ -375,7 +421,7 @@ const stageOf = (person) => {
  * One page of the leads behind a campaign row (newest first, or oldest first with sort 'asc'), for the dashboard's lead list. The leads are narrowed by
  * campaign (and optionally ad source, platform, ad set) and by a search on name / mobile number; only the leads on the
  * requested page are followed through the funnel, so a campaign with thousands of leads stays cheap.
- * `stage` ('loggedIn' | 'app') keeps only the people counted in that column of the campaign table and adds summary { people, apps }.
+ * `stage` keeps only the people counted in that column of the campaign table and adds summary { people, apps }.
  * Returns { total, summary, page, pageSize, leads: [{ id, name, mobile, channel, adSet, receivedAt, stage }] }.
  */
 export async function getCampaignLeads({ start, end }, { campaign, source, platform, adSet, search, page, pageSize, sort, stage }) {
@@ -415,6 +461,46 @@ export async function getCampaignLeads({ start, end }, { campaign, source, platf
         all.sort((a, b) => receivedAt(b) - receivedAt(a));
     }
 
+    // WhatsApp members (Members.source = 'WA Broadcasting') count as WhatsApp leads, received when they joined.
+    if (!source || source === 'whatsapp') {
+        for (let from = 0; from < LEAD_MAX_ROWS; from += LEAD_PAGE_SIZE) {
+            const { data } = unwrap(
+                await supabase
+                    .from('Members')
+                    .select('members_id, Name, Mobile, created_at, source, sub_source, campaign_name')
+                    .ilike('source', 'wa broadcasting')
+                    .gte('created_at', start)
+                    .lt('created_at', end)
+                    .order('created_at', { ascending: false })
+                    .order('members_id')
+                    .range(from, from + LEAD_PAGE_SIZE - 1)
+            );
+            all.push(...data.map(whatsappMemberLead));
+            if (data.length < LEAD_PAGE_SIZE) break;
+        }
+        all.sort((a, b) => receivedAt(b) - receivedAt(a));
+    }
+
+    // Members with no source count as "Unknown" leads, received when they joined.
+    if (!source || source === 'unknown') {
+        for (let from = 0; from < LEAD_MAX_ROWS; from += LEAD_PAGE_SIZE) {
+            const { data } = unwrap(
+                await supabase
+                    .from('Members')
+                    .select('members_id, Name, Mobile, created_at, source, sub_source, campaign_name')
+                    .is('source', null)
+                    .gte('created_at', start)
+                    .lt('created_at', end)
+                    .order('created_at', { ascending: false })
+                    .order('members_id')
+                    .range(from, from + LEAD_PAGE_SIZE - 1)
+            );
+            all.push(...data.map(unknownMemberLead));
+            if (data.length < LEAD_PAGE_SIZE) break;
+        }
+        all.sort((a, b) => receivedAt(b) - receivedAt(a));
+    }
+
     const needle = search?.trim().toLowerCase();
     const digits = needle?.replace(/\D/g, '');
     let matching = all.filter(
@@ -426,15 +512,29 @@ export async function getCampaignLeads({ start, end }, { campaign, source, platf
             (!needle || (lead.name ?? '').toLowerCase().includes(needle) || (digits && String(lead.mobile ?? '').replace(/\D/g, '').includes(digits)))
     );
 
-    // stage 'loggedIn' / 'app': only the people counted in that column of the campaign table (each one by their first lead)
+    // stage: only the leads / people counted in that column of the campaign table (each person by their first lead)
     let summary = null;
     let traced = null;
-    if (stage === 'loggedIn' || stage === 'app') {
+    if (STAGES.includes(stage)) {
         traced = await traceLeadPeople(matching);
-        const kept = traced.people.filter((person) => (stage === 'loggedIn' ? person.loggedIn : person.apps.length > 0));
-        const firstLeadIds = new Set(kept.map((person) => person.lead.id));
-        matching = matching.filter((lead) => firstLeadIds.has(lead.id));
-        summary = { people: kept.length, apps: kept.reduce((total, person) => total + person.apps.length, 0) };
+        const hasActiveApp = (person) => person.apps.some((app) => app.active);
+        const keep = {
+            loggedIn: (person) => person.loggedIn,
+            noApp: (person) => person.loggedIn && person.apps.length === 0,
+            app: (person) => person.apps.length > 0,
+            active: hasActiveApp,
+        }[stage];
+        if (stage === 'notLoggedIn') {
+            // every lead except the first lead of each person who logged in: leads minus logged in people
+            const loggedInLeadIds = new Set(traced.people.filter((person) => person.loggedIn).map((person) => person.lead.id));
+            matching = matching.filter((lead) => !loggedInLeadIds.has(lead.id));
+            summary = { people: matching.length, apps: 0 };
+        } else {
+            const kept = traced.people.filter(keep);
+            const keptLeadIds = new Set(kept.map((person) => person.lead.id));
+            matching = matching.filter((lead) => keptLeadIds.has(lead.id));
+            summary = { people: kept.length, apps: kept.reduce((total, person) => total + person.apps.length, 0) };
+        }
     }
 
     if (sort === 'asc') matching.reverse(); // fetched newest first
@@ -449,7 +549,7 @@ export async function getCampaignLeads({ start, end }, { campaign, source, platf
         pageSize,
         leads: rows.map((lead) => ({
             id: lead.id,
-            name: lead.name ?? null,
+            name: personByPhone.get(last10(lead.mobile))?.name ?? lead.name ?? null,
             mobile: lead.mobile ?? null,
             channel: leadChannel(lead),
             adSet: adSetOf(lead),

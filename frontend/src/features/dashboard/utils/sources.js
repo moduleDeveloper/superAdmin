@@ -7,6 +7,7 @@ export const SOURCES = [
   { key: 'google', label: 'Google Ads', short: 'Google', letter: 'G', color: COLORS.google },
   { key: 'website', label: 'Website', short: 'Website', letter: 'W', color: COLORS.website },
   { key: 'organic', label: 'Organic', short: 'Organic', letter: 'O', color: '#d63384' },
+  { key: 'unknown', label: 'Unknown', short: 'Unknown', letter: '?', color: '#64748b' },
 ];
 
 export const sourceByKey = (key) => SOURCES.find((source) => source.key === key) ?? null;

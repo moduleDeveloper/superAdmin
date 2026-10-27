@@ -1,5 +1,6 @@
+import { formatPercent, percentOf } from '../../../utils/percent';
 const number = (value) => value.toLocaleString('en-IN');
-const share = (value, total) => (total > 0 ? Math.round((value / total) * 100) : 0);
+const share = (value, total) => formatPercent(percentOf(value, total));
 
 function Chevron() {
   return (
@@ -34,7 +35,7 @@ function BarRow({ label, value, total, max, color }) {
         <span className="block h-full rounded-full" style={{ width: `${max > 0 ? (value / max) * 100 : 0}%`, background: color ?? 'var(--c-accent)' }} />
       </span>
       <span className="w-8 text-right font-semibold tabular-nums">{number(value)}</span>
-      <span className="w-10 text-right text-xs text-(--c-muted) tabular-nums">{share(value, total)}%</span>
+      <span className="w-12 text-right text-xs text-(--c-muted) tabular-nums">{share(value, total)}%</span>
     </div>
   );
 }
@@ -99,7 +100,7 @@ function LeadBreakdown({ channels, paid, campaigns, hours, loading }) {
                 <span className="min-w-0">{campaign.label}</span>
                 <span className="flex shrink-0 items-baseline gap-3">
                   <span className="font-semibold tabular-nums">{number(campaign.value)}</span>
-                  <span className="w-10 text-right text-xs text-(--c-muted) tabular-nums">{share(campaign.value, campaignTotal)}%</span>
+                  <span className="w-12 text-right text-xs text-(--c-muted) tabular-nums">{share(campaign.value, campaignTotal)}%</span>
                 </span>
               </li>
             ))}
