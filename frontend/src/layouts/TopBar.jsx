@@ -2,6 +2,8 @@ import { useLocation } from 'react-router-dom';
 
 import { SidebarToggleIcon } from '../components/sidebar/icons';
 import { useTheme } from '../hooks/useTheme';
+import TargetsNav, { TargetsPeriod } from '../features/targets/components/TargetsNav';
+import BackLink from '../components/BackLink';
 import ReportsNav from './ReportsNav';
 
 
@@ -49,10 +51,14 @@ const AvatarIcon = () => (
 function TopBar({ onOpenMenu }) {
   const [theme, toggleTheme] = useTheme();
   // The report shortcuts belong to the dashboard only; other pages show nothing here
-  const onDashboard = useLocation().pathname === '/';
+  const { pathname } = useLocation();
+  const onDashboard = pathname === '/';
+  const onTargets = pathname.startsWith('/targets');
+  const onSetTarget = pathname.startsWith('/targets/set-target');
+  const onLeadList = pathname === '/campaign-leads' || pathname === '/otp-not-login' || pathname === '/new-apps' || pathname.startsWith('/registrations'); // these pages put their Back link, search and period here (see CampaignLeadsPage, RegistrationsPage)
   return (
     <header className="sticky border-2 top-0 z-20 flex h-16 items-center justify-between  border-gray-100 bg-white px-3 sm:px-6 lg:px-10 mx-1">
-      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+      <div className={`flex min-w-0 flex-1 items-center gap-2 pr-4 sm:gap-3 sm:pr-8 ${onTargets ? "xl:justify-center" : ""}`}>
         {/* Phones only: opens the drawer. On large screens the sidebar has its own collapse button. */}
         <button
           type="button"
@@ -63,6 +69,21 @@ function TopBar({ onOpenMenu }) {
         >
           <SidebarToggleIcon />
         </button>
+        {onLeadList && <div id="topbar-slot" className="flex min-w-0 flex-1 items-center gap-4 sm:gap-6 lg:gap-8" />}
+        {onTargets && (
+          <div className="flex min-w-0 items-center gap-3 xl:gap-5">
+            {/* the settings pages have no other way back, so the button lives here */}
+            {onSetTarget && (
+              <div className="shrink-0">
+                <BackLink to="/targets" label="Back to Targets and Scorecard" button buttonText="Back" />
+              </div>
+            )}
+            {onSetTarget && <span className="hidden h-6 w-px bg-gray-200 xl:block" aria-hidden="true" />}
+            <div className="hidden xl:block">
+              <TargetsNav variant="wide" />
+            </div>
+          </div>
+        )}
         {onDashboard && (
           <div className="hidden xl:ml-24 xl:block">
             <ReportsNav />
@@ -75,6 +96,14 @@ function TopBar({ onOpenMenu }) {
           <div className="xl:hidden">
             <ReportsNav />
           </div>
+        )}
+        {onTargets && (
+          <>
+            <div className="xl:hidden">
+              <TargetsNav variant="compact" />
+            </div>
+            {!onSetTarget && <TargetsPeriod />}
+          </>
         )}
         <button
           type="button"

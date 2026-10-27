@@ -51,8 +51,32 @@ const AppLoginsPage = lazy(() =>
   import('../features/dashboard/pages/AppLoginsPage')
 );
 
+const OtpNotLoginPage = lazy(() =>
+  import('../features/dashboard/pages/OtpNotLoginPage')
+);
+
+const NewAppsPage = lazy(() =>
+  import('../features/dashboard/pages/NewAppsPage')
+);
+
 const MarketingPage = lazy(() =>
   import('../features/marketing/pages/MarketingPage')
+);
+
+const TargetsPage = lazy(() =>
+  import('../features/targets/pages/TargetsPage')
+);
+
+const TargetSettingsPage = lazy(() =>
+  import('../features/targets/pages/TargetSettingsPage')
+);
+
+const RegistrationsPage = lazy(() =>
+  import('../features/registrations/pages/RegistrationsPage')
+);
+
+const RegistrationActivityPage = lazy(() =>
+  import('../features/registrations/pages/RegistrationActivityPage')
 );
 
 const TrustMemberActionsPage = lazy(() =>
@@ -93,6 +117,14 @@ export const router = createBrowserRouter([
             element: lazyPage(CampaignLeadsPage),
           },
           {
+            path: '/new-apps',
+            element: lazyPage(NewAppsPage),
+          },
+          {
+            path: '/otp-not-login',
+            element: lazyPage(OtpNotLoginPage),
+          },
+          {
             path: '/app-logins/:trustId',
             element: lazyPage(AppLoginsPage),
           },
@@ -115,6 +147,22 @@ export const router = createBrowserRouter([
           {
             path: '/marketing',
             element: lazyPage(MarketingPage),
+          },
+          {
+            path: '/registrations',
+            element: lazyPage(RegistrationsPage),
+          },
+          {
+            path: '/registrations/:memberId',
+            element: lazyPage(RegistrationActivityPage),
+          },
+          {
+            path: '/targets/:campaignId?',
+            element: lazyPage(TargetsPage),
+          },
+          {
+            path: '/targets/set-target/:campaignId?/:adSetId?',
+            element: lazyPage(TargetSettingsPage),
           },
           {
             path: '/member-insights',

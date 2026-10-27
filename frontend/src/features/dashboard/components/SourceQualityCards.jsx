@@ -1,9 +1,11 @@
+import { useEffect, useRef, useState } from 'react';
+
+import { formatPercent, percentOf } from '../../../utils/percent';
 import { SOURCES } from '../utils/sources';
 import SourceIcon from './SourceIcon';
 
 const EMPTY = { leads: 0, creators: 0, activeCreators: 0, apps: 0, actions: 0, loggedIn: 0, platforms: [], rank: null };
 const number = (value) => value.toLocaleString('en-IN');
-const percent = (part, whole) => (whole > 0 ? Math.round((part / whole) * 100) : null);
 
 /** The two steps shown on each card, each as a share of all leads. */
 const STAGES = [
@@ -28,13 +30,13 @@ function SourceCard({ meta, source, wide, onSelect }) {
       };
 
   return (
-    <Card {...behaviour} className={`flex flex-col rounded-2xl border bg-white p-4 text-left shadow-[0_1px_3px_rgba(20,33,61,0.06)] ${behaviour.className}`}>
-      <div className="flex items-start gap-3">
+    <Card {...behaviour} className={`flex flex-col rounded-2xl border bg-white text-left ${wide ? 'p-4' : 'p-3'} shadow-[0_1px_3px_rgba(20,33,61,0.06)] ${behaviour.className}`}>
+      <div className={`flex gap-3 ${wide ? 'items-start' : 'flex-col gap-2'}`}>
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white" style={{ background: meta.color }} aria-hidden="true">
           <SourceIcon sourceKey={meta.key} letter={meta.letter} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-semibold">{meta.label}</p>
+          <p className={`font-semibold ${wide ? '' : 'truncate text-sm'}`} title={meta.label}>{meta.label}</p>
           <div className="mt-1 flex flex-wrap gap-1">
             {s.platforms.map((name) => (
               <span key={name} className="rounded-full bg-(--c-band) px-2 py-0.5 text-[0.65rem] font-medium text-(--c-text-2)">{name}</span>
@@ -44,21 +46,21 @@ function SourceCard({ meta, source, wide, onSelect }) {
       </div>
 
       {empty ? (
-        <p className="mt-4 text-sm text-(--c-muted)">No leads in this period</p>
+        <p className={`text-sm text-(--c-muted) ${wide ? 'mt-4' : 'mt-3'}`}>No leads in this period</p>
       ) : (
-        <div className="mt-4 space-y-3.5">
+        <div className={`space-y-3 ${wide ? 'mt-4' : 'mt-3'}`}>
           {STAGES.map((stage) => {
-            const share = percent(s[stage.key], s.leads) ?? 0;
+            const share = percentOf(s[stage.key], s.leads) ?? 0;
             return (
               <div key={stage.key}>
                 <div className="flex items-baseline justify-between gap-2">
                   <p className="text-sm font-semibold text-(--c-text)">{stage.label}</p>
                   <span className="rounded-full px-2 py-0.5 text-[0.7rem] font-bold tabular-nums text-white" style={{ background: meta.color }}>
-                    {share}%
+                    {formatPercent(share)}%
                   </span>
                 </div>
                 <p className="text-xs text-(--c-muted)">
-                  {number(s[stage.key])} of {number(s.leads)} leads {stage.verb}
+                  {wide ? `${number(s[stage.key])} of ${number(s.leads)} leads ${stage.verb}` : `${number(s[stage.key])} of ${number(s.leads)}`}
                 </p>
                 <div className="mt-1.5 h-2.5 rounded-full bg-(--c-track)">
                   <div className="animate-grow h-full origin-left rounded-full" style={{ width: `${share}%`, background: meta.color }} />
@@ -69,27 +71,77 @@ function SourceCard({ meta, source, wide, onSelect }) {
         </div>
       )}
 
-      <p className="mt-3.5 text-xs text-(--c-muted)">
-        {empty || s.apps === 0 ? 'No apps created yet' : `${number(s.creators)} ${s.creators === 1 ? 'person' : 'people'} built ${number(s.apps)} app${s.apps === 1 ? '' : 's'}${avgActions !== null ? ` · ${number(avgActions)} actions per app on average` : ''}`}
+      <p className="mt-3 text-xs text-(--c-muted)">
+        {empty || s.apps === 0 ? 'No apps created yet' : !wide ? `${number(s.apps)} app${s.apps === 1 ? '' : 's'} built` : `${number(s.creators)} ${s.creators === 1 ? 'person' : 'people'} built ${number(s.apps)} app${s.apps === 1 ? '' : 's'}${avgActions !== null ? ` · ${number(avgActions)} actions per app on average` : ''}`}
       </p>
     </Card>
   );
 }
 
-/** Five cards, one per lead source, always in the same order. Clicking one filters the whole dashboard. */
+/**
+ * One card per lead source, busiest first. Four fill the row on a wide screen (two on a phone); the others sit just off to the
+ * right. Round buttons slide the row one screenful at a time, in either direction, and show only when there is more that way.
+ * Clicking a card filters the whole dashboard.
+ */
 function SourceQualityCards({ sources, selected, onSelect, loading, embedded = false }) {
+  const track = useRef(null);
+  const [edges, setEdges] = useState({ start: true, end: false }); // is the row scrolled all the way to its start / end
   const chosen = SOURCES.find((meta) => meta.key === selected) ?? null; // one source picked: show only its card
+
+  // busiest sources first (ties keep the usual order), so the cards that matter are the ones in view
+  const leadsOf = (meta) => sources?.find((s) => s.key === meta.key)?.leads ?? 0;
+  const ordered = [...SOURCES].sort((a, b) => leadsOf(b) - leadsOf(a));
+
+  const measure = () => {
+    const el = track.current;
+    if (!el) return;
+    setEdges({ start: el.scrollLeft <= 4, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 4 });
+  };
+  // measured again whenever the cards or the width change (a phone turning round shows a different number of cards)
+  useEffect(() => {
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [sources, chosen]);
+  // one screenful at a time: the visible width plus the gap, which lands exactly on a card
+  const slide = (direction) => track.current?.scrollBy({ left: direction * (track.current.clientWidth + 12), behavior: 'smooth' });
 
   const body = loading && !sources ? (
     <div className="h-52 animate-pulse rounded-2xl bg-(--c-band)" />
   ) : (
     <>
       {!chosen && <p className="mb-3 text-xs text-(--c-muted)">Click a source to filter the whole dashboard.</p>}
-      <div className={`stagger grid gap-4 ${chosen ? '' : 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'}`}>
-        {(chosen ? [chosen] : SOURCES).map((meta) => (
-          <SourceCard key={meta.key} meta={meta} source={sources?.find((s) => s.key === meta.key)} wide={Boolean(chosen)} onSelect={() => onSelect(meta.key)} />
-        ))}
-      </div>
+      {chosen ? (
+        <div className="stagger grid gap-3">
+          <SourceCard meta={chosen} source={sources?.find((s) => s.key === chosen.key)} wide onSelect={() => onSelect(chosen.key)} />
+        </div>
+      ) : (
+        <div className="relative">
+          <div ref={track} onScroll={measure} className="scrollbar-none stagger flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth py-2 -my-2">
+            {ordered.map((meta) => (
+              <div key={meta.key} className="flex shrink-0 basis-[calc((100%-0.75rem)/2)] snap-start sm:basis-[calc((100%-1.5rem)/3)] md:basis-[calc((100%-2.25rem)/4)] [&>*]:w-full">
+                <SourceCard meta={meta} source={sources?.find((s) => s.key === meta.key)} onSelect={() => onSelect(meta.key)} />
+              </div>
+            ))}
+          </div>
+          {[
+            { direction: -1, side: '-left-3', hidden: edges.start, label: 'Show the previous sources', glyph: '‹' },
+            { direction: 1, side: '-right-3', hidden: edges.end, label: 'Show more sources', glyph: '›' },
+          ].map(({ direction, side, hidden, label, glyph }) => (
+            <button
+              key={direction}
+              type="button"
+              onClick={() => slide(direction)}
+              title={label}
+              aria-label={label}
+              tabIndex={hidden ? -1 : 0}
+              className={`absolute top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-xl text-(--c-link) shadow-[0_6px_16px_rgba(20,33,61,0.18)] transition duration-200 hover:scale-110 hover:bg-(--c-accent-soft) ${side} ${hidden ? 'pointer-events-none scale-75 opacity-0' : ''}`}
+            >
+              <span aria-hidden="true">{glyph}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </>
   );
 

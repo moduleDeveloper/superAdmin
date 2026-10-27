@@ -1,11 +1,13 @@
+import { formatPercent, percentOf } from '../../../utils/percent';
+
 const MIN_FILL = 1.5; // % of the track, so a very small stage is still visible
 
 /** `badge` says in plain words what the percentage means: the share of the step right above that reached this one. */
 const STAGES = [
   { key: 'leads', label: 'Leads', color: 'var(--c-c3)' },
-  { key: 'loggedIn', label: 'Logged In', color: 'var(--c-c1)', badge: (share) => `${share}% logged in` },
-  { key: 'creators', label: 'Built an App', color: 'var(--c-c4)', badge: (share) => `${share}% built an app` },
-  { key: 'activeCreators', label: 'App Has Activity', color: 'var(--c-c2)', badge: (share) => `${share}% active` },
+  { key: 'loggedIn', label: 'Logged In', color: 'var(--c-c1)', badge: (share) => `${formatPercent(share)}% logged in` },
+  { key: 'creators', label: 'Built an App', color: 'var(--c-c4)', badge: (share) => `${formatPercent(share)}% built an app` },
+  { key: 'activeCreators', label: 'App Has Activity', color: 'var(--c-c2)', badge: (share) => `${formatPercent(share)}% active` },
 ];
 
 const number = (value) => value.toLocaleString('en-IN');
@@ -26,7 +28,7 @@ function FunnelChart({ funnel, loading, scope, control, embedded = false }) {
     activeCreators: `App in use · ${apps(funnel.activeApps)}`,
   };
 
-  const overall = funnel && funnel.leads > 0 ? Math.round((funnel.activeCreators / funnel.leads) * 100) : null;
+  const overall = funnel ? percentOf(funnel.activeCreators, funnel.leads) : null;
 
   return (
     <section className={embedded ? '' : 'rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_1px_3px_rgba(20,33,61,0.06)]'}>
@@ -47,7 +49,7 @@ function FunnelChart({ funnel, loading, scope, control, embedded = false }) {
           const value = funnel?.[stage.key];
           const previous = i > 0 ? funnel?.[STAGES[i - 1].key] : null;
           const first = funnel?.leads ?? 0;
-          const share = previous ? Math.round((value / previous) * 100) : null;
+          const share = previous ? percentOf(value, previous) : null;
           const width = first > 0 ? Math.max(MIN_FILL, (value / first) * 100) : 0;
 
           return (
@@ -91,7 +93,7 @@ function FunnelChart({ funnel, loading, scope, control, embedded = false }) {
 
       {ready && overall !== null && (
         <p className="mt-5 border-t border-dashed border-(--c-border) pt-3 text-xs text-(--c-muted)">
-          Overall: <span className="font-semibold text-(--c-text)">{overall} of every 100 leads</span> ({number(funnel.activeCreators)} of {number(funnel.leads)}) have an app in use
+          Overall: <span className="font-semibold text-(--c-text)">{formatPercent(overall)} of every 100 leads</span> ({number(funnel.activeCreators)} of {number(funnel.leads)}) have an app in use
         </p>
       )}
     </section>

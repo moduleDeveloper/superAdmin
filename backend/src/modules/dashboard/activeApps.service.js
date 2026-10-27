@@ -1,12 +1,12 @@
 import { supabase } from '../../config/supabase.js';
-import { leadChannel, organicMemberLead, sourceKeyOf, sourceLabelOf } from '../marketing/leadStats.service.js';
+import { isUnknownMember, isWhatsAppMember, leadChannel, organicMemberLead, sourceKeyOf, sourceLabelOf, unknownMemberLead, whatsappMemberLead } from '../marketing/leadStats.service.js';
 
 const PAGE_SIZE = 1000;
 const TOP_APPS = 10;
 const DETAIL_BATCH = 5; // how many apps are looked up at once
 
 /** What the list can be limited to: every app, the apps from one ad source, or the apps that came without an ad lead. */
-export const APP_SCOPES = ['all', 'meta', 'whatsapp', 'google', 'website', 'organic', 'direct'];
+export const APP_SCOPES = ['all', 'meta', 'whatsapp', 'google', 'website', 'organic', 'unknown', 'direct'];
 
 const unwrap = ({ data, count, error }) => {
     if (error) throw error;
@@ -16,7 +16,7 @@ const unwrap = ({ data, count, error }) => {
 const last10 = (value) => String(value ?? '').replace(/\D/g, '').slice(-10);
 
 /** Each person's earliest lead, by phone number (last 10 digits). */
-async function firstLeadByPhone() {
+export async function firstLeadByPhone() {
     const { data } = unwrap(
         await supabase.from('leads').select('mobile, lead_received_at, source, platform, is_organic, campaign_name, adset_name').limit(5000)
     );
@@ -29,8 +29,8 @@ async function firstLeadByPhone() {
     return first;
 }
 
-/** Of these apps, the owners who are organic members, as members_id -> an organic "lead" (see organicMemberLead). */
-async function organicOwners(apps) {
+/** Of these apps, the owners who are organic, WhatsApp or have no source, as members_id -> an organic / unknown "lead" (see organicMemberLead). */
+export async function organicOwners(apps) {
     const ids = [...new Set(apps.map((app) => app.superuser?.members_id).filter(Boolean))];
     const found = new Map();
     for (let i = 0; i < ids.length; i += 100) {
@@ -38,10 +38,10 @@ async function organicOwners(apps) {
             await supabase
                 .from('Members')
                 .select('members_id, Name, Mobile, created_at, source, sub_source, campaign_name')
-                .ilike('source', 'organic')
+                .or('source.ilike.organic,source.ilike.wa*broadcasting,source.is.null')
                 .in('members_id', ids.slice(i, i + 100))
         );
-        data.forEach((member) => found.set(member.members_id, organicMemberLead(member)));
+        data.forEach((member) => found.set(member.members_id, isUnknownMember(member) ? unknownMemberLead(member) : isWhatsAppMember(member) ? whatsappMemberLead(member) : organicMemberLead(member)));
     }
     return found;
 }

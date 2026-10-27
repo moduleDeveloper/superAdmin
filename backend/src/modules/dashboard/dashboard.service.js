@@ -1,7 +1,8 @@
 import { supabase } from '../../config/supabase.js';
 import { listDayKeys, localDayKey, localHour } from '../../utils/dateRange.js';
 import { getMostActiveApps } from './activeApps.service.js';
-import { isOrganicMember, leadSections, organicMemberLead, sourceQuality, traceLeadPeople } from '../marketing/leadStats.service.js';
+import { classifyOtpMembersOf, fetchLoginIdentities } from './otpNotLogin.service.js';
+import { isOrganicMember, isUnknownMember, isWhatsAppMember, leadSections, organicMemberLead, sourceQuality, traceLeadPeople, unknownMemberLead, whatsappMemberLead } from '../marketing/leadStats.service.js';
 
 const PAGE_SIZE = 1000;
 const PAGE_BATCH = 8; // how many pages are fetched at once
@@ -19,7 +20,7 @@ const head = { count: 'exact', head: true };
  * Every row of `table` created in [start, end), fetched in parallel pages. `orderBy` is a unique column, so rows
  * that share a timestamp (a bulk import) are never skipped or repeated between pages.
  */
-async function fetchPeriodRows(table, columns, orderBy, start, end) {
+export async function fetchPeriodRows(table, columns, orderBy, start, end) {
     const base = () => supabase.from(table).select(columns).gte('created_at', start).lt('created_at', end);
 
     const { count } = unwrap(await supabase.from(table).select(orderBy, head).gte('created_at', start).lt('created_at', end));
@@ -60,9 +61,9 @@ function buildSeries(timestamps, { firstDay, lastDay }) {
  * the busiest apps, and where leads come from and how many became members. Only counts and small lists are sent.
  */
 export async function getDashboard({ start, end, firstDay, lastDay, todayStart }) {
-    const [members, trusts, activity, leads, totals, activeApps] = await Promise.all([
+    const [members, trusts, activity, leads, totals, activeApps, loginIdentities] = await Promise.all([
         fetchPeriodRows('Members', 'created_at, members_id, Name, Mobile, source, sub_source, campaign_name', 'members_id', start, end),
-        fetchPeriodRows('Trust', 'created_at, id', 'id', start, end),
+        fetchPeriodRows('Trust', 'created_at, id, superuser_id', 'id', start, end),
         fetchPeriodRows('page_activity', 'created_at, id, trust_id, user_reg_id, members_id', 'id', start, end),
         fetchPeriodRows('leads', 'created_at, id, lead_received_at, source, platform, is_organic, mobile, campaign_name, adset_name', 'id', start, end),
         Promise.all([
@@ -75,11 +76,18 @@ export async function getDashboard({ start, end, firstDay, lastDay, todayStart }
             supabase.from('leads').select('id', head).gte('lead_received_at', todayStart),
         ]),
         getMostActiveApps({ start, end }),
+        fetchLoginIdentities(),
     ]);
     const [memberTotal, appDownloaded, memberToday, trustTotal, trustToday, leadTotal, leadToday] = totals.map((r) => unwrap(r).count);
 
     // Leads are placed in the period by when they were received (not when the row was saved).
-    const periodLeads = leads.filter((lead) => lead.lead_received_at >= start && lead.lead_received_at < end);
+    // Compared as instants: the database returns +05:30 text while start/end are UTC ('Z') text, so strings must not be compared.
+    const startMs = new Date(start).getTime();
+    const endMs = new Date(end).getTime();
+    const periodLeads = leads.filter((lead) => {
+        const receivedMs = new Date(lead.lead_received_at).getTime();
+        return receivedMs >= startMs && receivedMs < endMs;
+    });
 
     const perTrust = new Map();
     activity.forEach((row) => {
@@ -89,20 +97,30 @@ export async function getDashboard({ start, end, firstDay, lastDay, todayStart }
     const { data: topNames } = top.length ? unwrap(await supabase.from('Trust').select('id, name').in('id', top.map(([id]) => id))) : { data: [] };
     const names = new Map(topNames.map((t) => [t.id, t.name]));
 
-    // The reports also count members who joined on their own (Members.source = 'Organic') as organic leads.
+    // The reports also count members who joined on their own (Members.source = 'Organic') as organic leads, and
+    // WhatsApp broadcast members (Members.source = 'WA Broadcasting') as WhatsApp leads.
     // The headline numbers and the leads graph keep counting the leads table only.
-    const reportLeads = [...periodLeads, ...members.filter(isOrganicMember).map(organicMemberLead)];
-    const trace = await traceLeadPeople(reportLeads);
+    // Members with no source are "Unknown" leads, unless the same phone number already came in as a lead.
+    const leadPhones = new Set(periodLeads.map((lead) => String(lead.mobile ?? '').replace(/\D/g, '').slice(-10)).filter((phone) => phone.length === 10));
+    const unknownMembers = members.filter((member) => isUnknownMember(member) && !leadPhones.has(String(member.Mobile ?? '').replace(/\D/g, '').slice(-10)));
+    const reportLeads = [...periodLeads, ...members.filter(isOrganicMember).map(organicMemberLead), ...members.filter(isWhatsAppMember).map(whatsappMemberLead), ...unknownMembers.map(unknownMemberLead)];
+    const [trace, otpMembers] = await Promise.all([
+        traceLeadPeople(reportLeads, loginIdentities.memberIds),
+        classifyOtpMembersOf(members, loginIdentities),
+    ]);
     const range = { firstDay, lastDay };
     return {
         period: { from: firstDay, to: lastDay },
         totals: {
             members: memberTotal,
             membersInPeriod: members.length,
+            otpNotLogin: otpMembers.notLoggedIn.length,
+            otpLoggedIn: otpMembers.loggedIn.length,
             membersToday: memberToday,
             appDownloaded,
             trusts: trustTotal,
             trustsInPeriod: trusts.length,
+            appBuilders: new Set(trusts.map((trust) => trust.superuser_id).filter(Boolean)).size, // different people who built them
             trustsToday: trustToday,
             leads: leadTotal,
             leadsInPeriod: periodLeads.length,

@@ -7,7 +7,7 @@ import { apiGet } from '../../../lib/apiClient';
  * Response data:
  * {
  *   period: { from, to },
- *   totals: { members, membersInPeriod, membersToday, appDownloaded, trusts, trustsInPeriod, trustsToday,
+ *   totals: { members, membersInPeriod, otpNotLogin, membersToday, appDownloaded, trusts, trustsInPeriod, trustsToday,
  *             leads, leadsInPeriod, leadsToday },
  *   activity: { total, byUsers, byMembers },                 // page_activity rows in the period
  *   series: { members | trusts | activity | leads: { trend: [{ date, count }], byHour: [{ hour, count }] } },
@@ -17,27 +17,29 @@ import { apiGet } from '../../../lib/apiClient';
  *   funnel: { leads, withMobile, loggedIn, creators, apps, activeCreators, activeApps }  // each stage is a subset of the one before (people)
  *   sources: [{ key, label, platforms, leads, loggedIn, creators, apps, activeCreators, activeApps, actions, rank | null,
  *               sections: { funnel, campaigns, leadChannels, leadConversion } }]   // ad source cards; sections = the same four for that source
- *   activeApps: { scopeCounts: { all, meta, whatsapp, google, website, organic, direct }, apps: [{ id, name, owner, ownerMobile, createdAt, appActions, userPanel, score, logins, lastActiveAt,
+ *   activeApps: { scopeCounts: { all, meta, whatsapp, google, website, organic, unknown, direct }, apps: [{ id, name, owner, ownerMobile, createdAt, appActions, userPanel, score, logins, lastActiveAt,
  *                 firstLogin: { at, platform, method, city, state } | null,
  *                 cameFrom: { source, platform, campaign, adSet, receivedAt } | null }] }   // top 10 in the period, busiest first
  *   campaigns: [{ label, channels, leads, members, loggedIn, creators, apps, activeCreators, activeApps,
  *                platforms: [row], adSets: [row] }]       // per campaign; leads with no campaign are grouped by source
  * }
+ * otpNotLogin: Members created in the range with exactly one reg_members row (SETU APP member)
+ * and no all-time login matching members_id or the last 10 mobile digits.
  */
 export const fetchDashboard = ({ range, from, to }) => apiGet('/dashboard', { range, from, to });
 
 /**
  * GET /dashboard/active-apps?scope=…  (same range params)
- * scope: 'all' | 'meta' | 'whatsapp' | 'google' | 'website' | 'organic' | 'direct' (owner came without an ad lead).
+ * scope: 'all' | 'meta' | 'whatsapp' | 'google' | 'website' | 'organic' | 'unknown' | 'direct' (owner came without an ad lead).
  * The top 10 apps ranked within that group. Response data: { apps: [same rows as dashboard.activeApps.apps],
- * scopeCounts: { all, meta, whatsapp, google, website, organic, direct } }  // apps with activity in the period, per group
+ * scopeCounts: { all, meta, whatsapp, google, website, organic, unknown, direct } }  // apps with activity in the period, per group
  */
 export const fetchActiveApps = ({ range, from, to, scope }) => apiGet('/dashboard/active-apps', { range, from, to, scope });
 
 /**
  * GET /dashboard/campaign-leads  (same range params)
  * One page of the leads behind a campaign row, newest first. campaign is required; source ('meta' | 'whatsapp' | 'google' | 'website' |
- * 'organic'), platform, adSet and search (name or mobile number) narrow it. stage ('loggedIn' | 'app') keeps only the people counted in that
+ * 'organic'), platform, adSet and search (name or mobile number) narrow it. stage keeps only the people counted in that
  * column of the campaign table and adds summary { people, apps } to the response. sort ('asc' | 'desc') orders by the time the lead was received, newest first by default; pageSize is at most 100.
  * Response data: { total, page, pageSize, leads: [{ id, name, mobile, channel, adSet, receivedAt,
  *                  stage: 'lead' | 'member' | 'loggedIn' | 'app' | 'active' }] }
@@ -59,3 +61,20 @@ export const fetchAppJourney = ({ trustId, range, from, to }) => apiGet('/dashbo
  */
 export const fetchAppLogins = ({ trustId, range, from, to, search, page, pageSize }) =>
   apiGet('/dashboard/app-logins', { trustId, range, from, to, search, page, pageSize });
+
+/**
+ * GET /dashboard/otp-not-login  (same range params, plus status = all | notLoggedIn | loggedIn, source, campaign, search, sort, dir, page, pageSize)
+ * The SETU app members behind the "OTP Not Login" card. Response data: { counts: { all, notLoggedIn, loggedIn }, total, sources: [{ key, label, count,
+ * campaigns: [{ name, count, platforms: [{ label, count }] }] }], filteredTotal, page, pageSize,
+ * people: [{ id, name, mobile, sourceKey, sourceLabel, platform, campaign, registeredAt, loggedIn }] }
+ */
+export const fetchOtpNotLogin = ({ range, from, to, status, source, campaign, search, sort, dir, page, pageSize }) =>
+  apiGet('/dashboard/otp-not-login', { range, from, to, status, source, campaign, search, sort, dir, page, pageSize });
+
+/**
+ * GET /dashboard/new-apps  (same range params, plus source, search, sort, dir, page, pageSize)
+ * The apps created in the period and who built them. Response data: { total, people, sources: [{ key, label, count }], filteredTotal, page, pageSize,
+ * apps: [{ id, name, owner, ownerMobile, ownerMemberId, ownerApps, sourceKey, sourceLabel, platform, campaign, createdAt }] }
+ */
+export const fetchNewApps = ({ range, from, to, source, search, sort, dir, page, pageSize }) =>
+  apiGet('/dashboard/new-apps', { range, from, to, source, search, sort, dir, page, pageSize });
